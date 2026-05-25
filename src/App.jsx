@@ -28,6 +28,7 @@ import {
   getVisibleBossCards,
   playRound,
   resetBattle,
+  setMaxHp,
   setRevealCount,
   setWeather,
   toggleCardInDeck,
@@ -65,6 +66,29 @@ export function App() {
         <StatCard icon={<Activity />} label="当前回合" value={game.round} />
         <StatCard icon={<Flame />} label="天气" value={weatherLibrary.find((w) => w.id === game.weather)?.name ?? game.weather} />
         <StatCard icon={<Sparkles />} label="崩溃层数" value={`我 ${game.playerCollapseStacks} / Boss ${game.bossCollapseStacks}`} />
+      </section>
+
+      <section className="configBand">
+        <label>
+          <span>玩家最大生命</span>
+          <input
+            type="number"
+            min="1"
+            max="99"
+            value={game.playerMaxHp}
+            onChange={(event) => setGame((state) => setMaxHp(state, "player", event.target.value))}
+          />
+        </label>
+        <label>
+          <span>Boss 最大生命</span>
+          <input
+            type="number"
+            min="1"
+            max="99"
+            value={game.bossMaxHp}
+            onChange={(event) => setGame((state) => setMaxHp(state, "boss", event.target.value))}
+          />
+        </label>
       </section>
 
       {game.winner && (

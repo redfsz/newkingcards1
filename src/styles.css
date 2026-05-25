@@ -90,6 +90,37 @@ h3 {
   max-width: 1440px;
 }
 
+.configBand {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  margin: 0 auto 16px;
+  max-width: 1440px;
+  padding: 12px;
+}
+
+.configBand label {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.configBand span {
+  color: #637083;
+  font-size: 13px;
+}
+
+.configBand input {
+  border: 1px solid #cbd5df;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0 10px;
+  width: 86px;
+}
+
 .statCard {
   align-items: center;
   background: #fff;
@@ -502,9 +533,15 @@ h3 {
   }
 
   .statusBand,
+  .configBand,
   .battleInfo,
   .segmented {
     grid-template-columns: 1fr;
+  }
+
+  .configBand {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .itemRow {

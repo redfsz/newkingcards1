@@ -144,7 +144,10 @@ export function playRound(state, playerCardKey) {
   };
 
   const item = itemById.get(state.activeItemId);
-  const result = compareCards(playerCard, bossCard, state.weather, item);
+  const result = compareCards(playerCard, bossCard, state.weather, item, {
+    playerHandBeforePlay: state.playerHand,
+    bossHandBeforePlay: state.bossHand
+  });
   const logs = [formatRoundLog(state.round, playerCard, bossCard, result, item)];
 
   if (result.player === "win") {
@@ -201,10 +204,30 @@ export function setRevealCount(state, revealCount) {
   });
 }
 
+export function setMaxHp(state, side, value) {
+  const maxHp = Math.max(1, Math.min(99, Number(value) || 1));
+  if (side === "player") {
+    return {
+      ...state,
+      playerMaxHp: maxHp,
+      playerHp: Math.min(maxHp, Math.max(1, state.playerHp))
+    };
+  }
+  return {
+    ...state,
+    bossMaxHp: maxHp,
+    bossHp: Math.min(maxHp, Math.max(1, state.bossHp))
+  };
+}
+
 export function resetBattle(state) {
   const fresh = createInitialState();
   return syncRevealedBossCards({
     ...fresh,
+    playerHp: state.playerMaxHp,
+    playerMaxHp: state.playerMaxHp,
+    bossHp: state.bossMaxHp,
+    bossMaxHp: state.bossMaxHp,
     weather: state.weather,
     selectedMoves: state.selectedMoves,
     selectedBossMoves: state.selectedBossMoves,
@@ -284,26 +307,41 @@ function getBossCardStatus(state, key) {
   return "unknown";
 }
 
-function compareCards(playerCard, bossCard, weather, item) {
+function compareCards(playerCard, bossCard, weather, item, context = {}) {
+  const playerEffectiveId = effectiveCardId(playerCard, context.playerHandBeforePlay);
+  const bossEffectiveId = effectiveCardId(bossCard, context.bossHandBeforePlay);
+
   if (playerCard.id === "assassin" || bossCard.id === "assassin") {
     return {
       player: "draw",
       boss: "draw",
-      playerLevel: adjustedLevel(playerCard, weather, item, "player"),
-      bossLevel: adjustedLevel(bossCard, weather, item, "boss"),
+      playerLevel: adjustedLevel(playerCard, weather, item, "player", context.playerHandBeforePlay),
+      bossLevel: adjustedLevel(bossCard, weather, item, "boss", context.bossHandBeforePlay),
       reason: "刺客强制双输"
     };
   }
 
-  if (playerCard.id === "commoner" && bossCard.id === "king") {
-    return winResult(playerCard, bossCard, weather, item, "平民克制国王");
+  if (playerEffectiveId === "commoner" && bossEffectiveId === "king") {
+    return {
+      player: "win",
+      boss: "loss",
+      playerLevel: adjustedLevel(playerCard, weather, item, "player", context.playerHandBeforePlay),
+      bossLevel: adjustedLevel(bossCard, weather, item, "boss", context.bossHandBeforePlay),
+      reason: "平民克制国王"
+    };
   }
-  if (bossCard.id === "commoner" && playerCard.id === "king") {
-    return lossResult(playerCard, bossCard, weather, item, "平民克制国王");
+  if (bossEffectiveId === "commoner" && playerEffectiveId === "king") {
+    return {
+      player: "loss",
+      boss: "win",
+      playerLevel: adjustedLevel(playerCard, weather, item, "player", context.playerHandBeforePlay),
+      bossLevel: adjustedLevel(bossCard, weather, item, "boss", context.bossHandBeforePlay),
+      reason: "平民克制国王"
+    };
   }
 
-  const playerLevel = adjustedLevel(playerCard, weather, item, "player");
-  const bossLevel = adjustedLevel(bossCard, weather, item, "boss");
+  const playerLevel = adjustedLevel(playerCard, weather, item, "player", context.playerHandBeforePlay);
+  const bossLevel = adjustedLevel(bossCard, weather, item, "boss", context.bossHandBeforePlay);
   if (playerLevel > bossLevel) {
     return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "高等级获胜" };
   }
@@ -313,9 +351,16 @@ function compareCards(playerCard, bossCard, weather, item) {
   return { player: "draw", boss: "draw", playerLevel, bossLevel, reason: "同等级双方失败" };
 }
 
-function adjustedLevel(card, weather, item, side) {
+function effectiveCardId(card, handBeforePlay = []) {
+  if (card.id !== "regicide") {
+    return card.id;
+  }
+  return handBeforePlay.some((handCard) => handCard.id === "king") ? card.id : "king";
+}
+
+function adjustedLevel(card, weather, item, side, handBeforePlay = []) {
   let level = card.level;
-  if (card.id === "regicide") {
+  if (effectiveCardId(card, handBeforePlay) === "king" && card.id === "regicide") {
     level = 3;
   }
   if (Number.isFinite(level) && Math.abs(level % 1 - 0.5) < 0.01) {
@@ -371,7 +416,7 @@ function rankBossCardsByPlan(state, legal) {
 }
 
 function scoreBossCard(state, card, phase) {
-  const level = adjustedLevel(card, state.weather, null, "boss");
+  const level = adjustedLevel(card, state.weather, null, "boss", state.bossHand);
   let score = 0;
   if (state.bossPattern.at(-1) === "loss") score += level * 6;
   else if (phase === 0) score += level * 5;

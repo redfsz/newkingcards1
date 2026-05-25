@@ -7,16 +7,16 @@ export const cardLibrary = [
   { id: "thief", name: "盗贼", level: 0.5, type: "补充基础卡", note: "低位诱导牌" },
   { id: "noble", name: "贵族", level: 2.3, type: "补充基础卡", note: "高位补充牌" },
   { id: "queen", name: "王后", level: 2.9, type: "补充基础卡", note: "接近国王的高位牌" },
-  { id: "regicide", name: "弑君者", level: 1, type: "补充基础卡", note: "手牌中没有国王时变为国王" },
-  { id: "rebel", name: "乱党", level: 1, type: "补充基础卡", note: "手牌中没有大臣时变为大臣" },
-  { id: "beggar", name: "乞丐", level: 1, type: "补充基础卡", note: "手牌中没有平民时变为平民" },
-  { id: "assassin", name: "刺客", level: 0, type: "额外功能卡", note: "强制双输，优先级低于伪神" },
-  { id: "false_god", name: "伪神", level: 0, type: "额外功能卡", note: "本次必赢，下回合自动输" },
-  { id: "fortune_teller", name: "占卜师", level: 0, type: "额外功能卡", note: "本次必输，下次必赢" },
-  { id: "shadow", name: "影子", level: 0, type: "额外功能卡", note: "复制对手打出的上一张牌" },
+  { id: "regicide", name: "弑君者", level: 1, type: "补充基础卡", note: "手牌中没有国王时，视为国王" },
+  { id: "rebel", name: "乱党", level: 1, type: "补充基础卡", note: "手牌中没有大臣时，视为大臣" },
+  { id: "beggar", name: "乞丐", level: 1, type: "补充基础卡", note: "手牌中没有平民时，视为平民" },
+  { id: "assassin", name: "刺客", level: 0, type: "额外功能卡", note: "强制双方失败" },
+  { id: "false_god", name: "伪神", level: 0, type: "额外功能卡", note: "本次必胜，下回合自动失败" },
+  { id: "fortune_teller", name: "占卜师", level: 0, type: "额外功能卡", note: "本次必败，下次必胜" },
+  { id: "shadow", name: "影子", level: 0, type: "额外功能卡", note: "复制对手上一张打出的牌" },
   { id: "fate", name: "命运", level: 0, type: "额外功能卡", note: "出牌时等级随机变为 1-3 的整数" },
-  { id: "civilization", name: "文明", level: 0, type: "额外功能卡", note: "打出后你的所有手牌变为国王" },
-  { id: "all_in", name: "孤注一掷", level: 0, type: "额外功能卡", note: "随机将另一张手牌的等级 x2" },
+  { id: "civilization", name: "文明", level: 0, type: "额外功能卡", note: "打出后你的所有手牌视为国王" },
+  { id: "all_in", name: "孤注一掷", level: 0, type: "额外功能卡", note: "随机将另一张手牌等级 x2" },
   { id: "hope", name: "希望", level: 0, type: "额外功能卡", note: "将 1 张随机牌从弃牌堆放回手牌" },
   { id: "demon", name: "恶魔", level: 0, type: "额外功能卡", note: "将对方 1 张随机牌移入弃牌堆" },
   { id: "forge_blade", name: "铸剑", level: 0, type: "额外功能卡", note: "每打出一次，这张牌等级永久 +0.1" },
@@ -45,31 +45,7 @@ export const cardLibrary = [
   { id: "survive_round", name: "续命牌", level: 0, type: "一次性卡牌", note: "本局游戏回合数上限 +1" }
 ];
 
-export const defaultPlayerDeck = [
-  "king",
-  "minister",
-  "commoner",
-  "guard",
-  "maid",
-  "thief",
-  "noble",
-  "queen",
-  "assassin",
-  "regicide"
-];
-
-export const defaultBossDeck = [
-  "king",
-  "minister",
-  "commoner",
-  "guard",
-  "maid",
-  "thief",
-  "noble",
-  "strike_blade",
-  "fortune_teller",
-  "queen"
-];
+export const requiredDeckCards = ["king", "commoner"];
 
 export const moveLibrary = [
   { id: "single_win", name: "一胜", pattern: ["win"], damage: 1, price: 0, note: "固有招式" },
@@ -87,15 +63,15 @@ export const bossMoveLibrary = [
 
 export const itemLibrary = [
   { id: "peek", name: "预见牌", price: 100, note: "显示 Boss 下一张倾向出牌" },
-  { id: "plus_half", name: "加 0.5 牌", price: 100, note: "本回合自己的牌等级 +0.5" },
-  { id: "plus_one", name: "加 1 牌", price: 130, note: "本回合自己的牌等级 +1" },
-  { id: "minus_half", name: "减 0.5 牌", price: 100, note: "本回合 Boss 的牌等级 -0.5" },
+  { id: "plus_half", name: "加0.5牌", price: 100, note: "本回合自己的牌等级 +0.5" },
+  { id: "plus_one", name: "加1牌", price: 130, note: "本回合自己的牌等级 +1" },
+  { id: "minus_half", name: "减0.5牌", price: 100, note: "本回合 Boss 的牌等级 -0.5" },
   { id: "save", name: "续命牌", price: 120, note: "本回合自己输掉的牌不进弃牌堆" }
 ];
 
 export const weatherLibrary = [
   { id: "clear", name: "晴朗", note: "无特殊效果" },
-  { id: "rain", name: "雨季", note: "经济天气，本战斗模拟中不改变胜负" },
+  { id: "rain", name: "雨季", note: "经济天气，本模拟器暂不改变胜负" },
   { id: "sun", name: "烈日", note: "所有 .5 牌等级 -0.5" },
   { id: "hail", name: "冰雹", note: "所有 .5 牌等级 +0.5" },
   { id: "warm", name: "暖风", note: "崩溃触发的终极招式直接击败目标" }
@@ -106,3 +82,97 @@ export const resultLabels = {
   loss: "负",
   draw: "双输"
 };
+
+export const levelPresets = [
+  {
+    id: "level_1",
+    name: "第一关：入塔试炼",
+    playerMaxHp: 18,
+    bossMaxHp: 18,
+    weather: "clear",
+    revealCount: 1,
+    playerDeck: ["king", "commoner", "minister", "guard", "maid", "thief", "noble", "assassin", "regicide", "buff_half"],
+    bossDeck: ["king", "commoner", "minister", "guard", "maid", "thief", "noble", "fortune_teller", "rebel", "beggar"],
+    selectedMoves: ["single_win", "double_win", "counter"],
+    selectedBossMoves: ["boss_single", "boss_bait"],
+    ownedItems: ["peek", "plus_half", "minus_half", "save"]
+  },
+  {
+    id: "level_2",
+    name: "第二关：护卫巡逻",
+    playerMaxHp: 18,
+    bossMaxHp: 22,
+    weather: "rain",
+    revealCount: 1,
+    playerDeck: ["king", "commoner", "minister", "guard", "maid", "noble", "queen", "regicide", "rebel", "debuff_half"],
+    bossDeck: ["king", "commoner", "minister", "guard", "guard", "noble", "queen", "strike_blade", "rebel", "beggar"],
+    selectedMoves: ["single_win", "double_win", "counter"],
+    selectedBossMoves: ["boss_single", "boss_double"],
+    ownedItems: ["peek", "plus_half", "minus_half", "plus_one"]
+  },
+  {
+    id: "level_3",
+    name: "第三关：雪花谋士",
+    playerMaxHp: 20,
+    bossMaxHp: 24,
+    weather: "hail",
+    revealCount: 2,
+    playerDeck: ["king", "commoner", "minister", "maid", "thief", "noble", "queen", "fortune_teller", "shadow", "buff_one"],
+    bossDeck: ["king", "commoner", "minister", "maid", "thief", "noble", "snowflake", "fortune_teller", "shadow", "rebel"],
+    selectedMoves: ["single_win", "double_win", "win_win_loss"],
+    selectedBossMoves: ["boss_single", "boss_bait"],
+    ownedItems: ["peek", "plus_half", "plus_one", "save"]
+  },
+  {
+    id: "level_4",
+    name: "第四关：四象门",
+    playerMaxHp: 22,
+    bossMaxHp: 28,
+    weather: "sun",
+    revealCount: 2,
+    playerDeck: ["king", "commoner", "minister", "guard", "four_qinglong", "four_baihu", "four_zhuque", "four_xuanwu", "regicide", "debuff_one"],
+    bossDeck: ["king", "commoner", "minister", "guard", "four_qinglong", "four_baihu", "four_zhuque", "four_xuanwu", "noble", "queen"],
+    selectedMoves: ["single_win", "double_win", "win_win_loss", "comeback"],
+    selectedBossMoves: ["boss_single", "boss_double", "boss_bait"],
+    ownedItems: ["peek", "minus_half", "plus_one", "save"]
+  },
+  {
+    id: "level_5",
+    name: "第五关：伪神赌局",
+    playerMaxHp: 24,
+    bossMaxHp: 30,
+    weather: "clear",
+    revealCount: 3,
+    playerDeck: ["king", "commoner", "minister", "queen", "false_god", "assassin", "fate", "hope", "demon", "survive_round"],
+    bossDeck: ["king", "commoner", "minister", "queen", "false_god", "assassin", "fate", "hope", "demon", "strike_blade"],
+    selectedMoves: ["single_win", "double_win", "counter", "comeback"],
+    selectedBossMoves: ["boss_single", "boss_double", "boss_bait"],
+    ownedItems: ["peek", "plus_one", "minus_half", "save"]
+  },
+  {
+    id: "level_6",
+    name: "第六关：暖风终局",
+    playerMaxHp: 26,
+    bossMaxHp: 34,
+    weather: "warm",
+    revealCount: 3,
+    playerDeck: ["king", "commoner", "minister", "guard", "queen", "civilization", "final_moment", "perfect_match", "regicide", "buff_one"],
+    bossDeck: ["king", "commoner", "minister", "guard", "queen", "civilization", "final_moment", "perfect_match", "rebel", "beggar"],
+    selectedMoves: ["single_win", "double_win", "win_win_loss", "counter"],
+    selectedBossMoves: ["boss_single", "boss_double", "boss_bait"],
+    ownedItems: ["peek", "plus_half", "plus_one", "save"]
+  },
+  {
+    id: "level_7",
+    name: "第七关：王座决战",
+    playerMaxHp: 30,
+    bossMaxHp: 42,
+    weather: "clear",
+    revealCount: 4,
+    playerDeck: ["king", "commoner", "minister", "queen", "noble", "strike_blade", "forge_blade", "false_god", "regicide", "buff_one"],
+    bossDeck: ["king", "commoner", "minister", "queen", "noble", "strike_blade", "forge_blade", "false_god", "civilization", "perfect_match"],
+    selectedMoves: ["single_win", "double_win", "win_win_loss", "counter", "comeback"],
+    selectedBossMoves: ["boss_single", "boss_double", "boss_bait"],
+    ownedItems: ["peek", "plus_one", "minus_half", "save"]
+  }
+];

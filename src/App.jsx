@@ -1,6 +1,7 @@
 import {
   Activity,
   BadgeDollarSign,
+  Download,
   Eye,
   Flame,
   HeartPulse,
@@ -8,13 +9,15 @@ import {
   RotateCcw,
   ShieldAlert,
   Sparkles,
-  Swords
+  Swords,
+  Upload
 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   bossMoveLibrary,
   cardLibrary,
   itemLibrary,
+  levelPresets,
   moveLibrary,
   resultLabels,
   weatherLibrary
@@ -23,6 +26,7 @@ import {
   canSeeBossPlannedCard,
   chooseItem,
   createInitialState,
+  createStateFromConfig,
   getLegalPlayerCards,
   getPredictedBossCard,
   getVisibleBossCards,
@@ -31,13 +35,15 @@ import {
   setMaxHp,
   setRevealCount,
   setWeather,
+  stateToLevelConfig,
   toggleCardInDeck,
   toggleItem,
   toggleMove
 } from "./simulator.js";
 
 export function App() {
-  const [game, setGame] = useState(() => createInitialState());
+  const [game, setGame] = useState(() => createInitialState(levelPresets[0]));
+  const fileInputRef = useRef(null);
   const legalCards = useMemo(() => getLegalPlayerCards(game), [game]);
   const legalKeys = new Set(legalCards.map((card) => card.key));
   const visibleBossCards = getVisibleBossCards(game);
@@ -47,18 +53,76 @@ export function App() {
   const playerPatternText = game.playerPattern.map((entry) => resultLabels[entry]).join(" ");
   const bossPatternText = game.bossPattern.map((entry) => resultLabels[entry]).join(" ");
 
+  function applyLevel(levelId) {
+    const level = levelPresets.find((entry) => entry.id === levelId);
+    if (level) setGame(createStateFromConfig(level));
+  }
+
+  function exportLevel() {
+    const config = stateToLevelConfig(game);
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${config.id || "king-cards-level"}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importLevel(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const config = JSON.parse(text);
+      setGame(createStateFromConfig(config));
+    } catch {
+      setGame((state) => ({
+        ...state,
+        logs: [{ id: state.logs.length + 1, tone: "warn", text: "导入失败：请选择合法的关卡 JSON 文件。" }, ...state.logs]
+      }));
+    }
+  }
+
   return (
     <main className="app">
       <header className="topbar">
         <div>
           <p className="eyebrow">King Cards 新版玩法验证</p>
-          <h1>Boss 血条 + 招式序列模拟器</h1>
+          <h1>关卡模拟器</h1>
         </div>
-        <button className="iconButton primary" onClick={() => setGame((state) => resetBattle(state))}>
-          <RotateCcw size={18} />
-          重开本场
-        </button>
+        <div className="topActions">
+          <button className="iconButton" onClick={exportLevel}>
+            <Download size={18} />
+            导出关卡
+          </button>
+          <button className="iconButton" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={18} />
+            上传关卡
+          </button>
+          <input ref={fileInputRef} className="hiddenInput" type="file" accept="application/json,.json" onChange={importLevel} />
+          <button className="iconButton primary" onClick={() => setGame((state) => resetBattle(state))}>
+            <RotateCcw size={18} />
+            重开本场
+          </button>
+        </div>
       </header>
+
+      <section className="levelBand">
+        <label>
+          <span>当前关卡</span>
+          <select value={game.currentLevelId} onChange={(event) => applyLevel(event.target.value)}>
+            {levelPresets.map((level) => (
+              <option key={level.id} value={level.id}>{level.name}</option>
+            ))}
+            {!levelPresets.some((level) => level.id === game.currentLevelId) && (
+              <option value={game.currentLevelId}>{game.currentLevelName}</option>
+            )}
+          </select>
+        </label>
+        <strong>{game.currentLevelName}</strong>
+      </section>
 
       <section className="statusBand">
         <StatCard icon={<HeartPulse />} label="玩家生命" value={`${game.playerHp}/${game.playerMaxHp}`} danger={game.playerHp <= 6} />
@@ -71,29 +135,17 @@ export function App() {
       <section className="configBand">
         <label>
           <span>玩家最大生命</span>
-          <input
-            type="number"
-            min="1"
-            max="99"
-            value={game.playerMaxHp}
-            onChange={(event) => setGame((state) => setMaxHp(state, "player", event.target.value))}
-          />
+          <input type="number" min="1" max="99" value={game.playerMaxHp} onChange={(event) => setGame((state) => setMaxHp(state, "player", event.target.value))} />
         </label>
         <label>
           <span>Boss 最大生命</span>
-          <input
-            type="number"
-            min="1"
-            max="99"
-            value={game.bossMaxHp}
-            onChange={(event) => setGame((state) => setMaxHp(state, "boss", event.target.value))}
-          />
+          <input type="number" min="1" max="99" value={game.bossMaxHp} onChange={(event) => setGame((state) => setMaxHp(state, "boss", event.target.value))} />
         </label>
       </section>
 
       {game.winner && (
         <section className={`resultBanner ${game.winner === "player" ? "win" : "loss"}`}>
-          {game.winner === "player" ? "玩家胜利：Boss 已被击败" : "战斗失败：玩家已倒下"}
+          {game.winner === "player" ? "玩家胜利：Boss 已被击败" : "战斗失败：玩家已经倒下"}
         </section>
       )}
 
@@ -103,7 +155,6 @@ export function App() {
             <Swords size={18} />
             <h2>出牌区</h2>
           </div>
-
           <div className="duelGrid">
             <div>
               <h3>我的手牌</h3>
@@ -129,13 +180,7 @@ export function App() {
                 <h3>Boss 透视牌</h3>
                 <label className="revealControl">
                   <span>透视 {game.revealCount} 张</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="5"
-                    value={game.revealCount}
-                    onChange={(event) => setGame((state) => setRevealCount(state, event.target.value))}
-                  />
+                  <input type="range" min="0" max="5" value={game.revealCount} onChange={(event) => setGame((state) => setRevealCount(state, event.target.value))} />
                 </label>
               </div>
               <div className="bossPeek">
@@ -148,20 +193,16 @@ export function App() {
                     <em>Lv {card.level}</em>
                   </div>
                 ))}
-                {game.revealCount === 0 && (
-                  <div className="miniCard faceDown">当前没有透视任何 Boss 手牌</div>
-                )}
+                {game.revealCount === 0 && <div className="miniCard faceDown">当前没有透视任何 Boss 手牌</div>}
               </div>
               <div className={plannedCardVisible ? "peekResult" : "peekResult unknown"}>
                 <Eye size={16} />
-                {plannedCardVisible
-                  ? `本回合已知：Boss 将出【${plannedVisibleCard?.name}】`
-                  : "本回合未知：Boss 要出的牌不在透视范围内"}
+                {plannedCardVisible ? `本回合已知：Boss 将出【${plannedVisibleCard?.name}】` : "本回合未知：Boss 要出的牌不在透视范围内"}
               </div>
               {predictedBossCard && (
                 <div className="peekResult">
                   <Eye size={16} />
-                  预见牌：Boss 倾向出【{predictedBossCard.name}】
+                  {`预见牌：Boss 倾向出【${predictedBossCard.name}】`}
                 </div>
               )}
             </div>
@@ -176,57 +217,31 @@ export function App() {
         </section>
 
         <section className="panel">
-          <div className="panelTitle">
-            <Sparkles size={18} />
-            <h2>招式</h2>
-          </div>
+          <div className="panelTitle"><Sparkles size={18} /><h2>招式</h2></div>
           <h3>玩家携带</h3>
           <div className="moveList">
             {moveLibrary.map((move) => (
-              <ToggleRow
-                key={move.id}
-                active={game.selectedMoves.includes(move.id)}
-                title={move.name}
-                meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`}
-                note={move.note}
-                onClick={() => setGame((state) => toggleMove(state, move.id, "player"))}
-              />
+              <ToggleRow key={move.id} active={game.selectedMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "player"))} />
             ))}
           </div>
           <h3>Boss 携带</h3>
           <div className="moveList">
             {bossMoveLibrary.map((move) => (
-              <ToggleRow
-                key={move.id}
-                active={game.selectedBossMoves.includes(move.id)}
-                title={move.name}
-                meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`}
-                note={move.note}
-                onClick={() => setGame((state) => toggleMove(state, move.id, "boss"))}
-              />
+              <ToggleRow key={move.id} active={game.selectedBossMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "boss"))} />
             ))}
           </div>
         </section>
 
         <section className="panel">
-          <div className="panelTitle">
-            <BadgeDollarSign size={18} />
-            <h2>道具与天气</h2>
-          </div>
+          <div className="panelTitle"><BadgeDollarSign size={18} /><h2>道具与天气</h2></div>
           <h3>天气</h3>
           <div className="segmented">
             {weatherLibrary.map((weather) => (
-              <button
-                key={weather.id}
-                className={game.weather === weather.id ? "active" : ""}
-                onClick={() => setGame((state) => setWeather(state, weather.id))}
-                title={weather.note}
-              >
+              <button key={weather.id} className={game.weather === weather.id ? "active" : ""} onClick={() => setGame((state) => setWeather(state, weather.id))} title={weather.note}>
                 {weather.name}
               </button>
             ))}
           </div>
-
           <h3>一次性道具牌</h3>
           <div className="itemList">
             {itemLibrary.map((item) => {
@@ -234,20 +249,9 @@ export function App() {
               const armed = game.activeItemId === item.id;
               return (
                 <div className={`itemRow ${owned ? "" : "muted"}`} key={item.id}>
-                  <button className={owned ? "toggle active" : "toggle"} onClick={() => setGame((state) => toggleItem(state, item.id))}>
-                    {owned ? "已买" : "未买"}
-                  </button>
-                  <button
-                    className={`armButton ${armed ? "armed" : ""}`}
-                    disabled={!owned || Boolean(game.winner)}
-                    onClick={() => setGame((state) => chooseItem(state, item.id))}
-                  >
-                    {armed ? "本回合使用" : "准备使用"}
-                  </button>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <span>{item.price}$ / {item.note}</span>
-                  </div>
+                  <button className={owned ? "toggle active" : "toggle"} onClick={() => setGame((state) => toggleItem(state, item.id))}>{owned ? "已买" : "未买"}</button>
+                  <button className={`armButton ${armed ? "armed" : ""}`} disabled={!owned || Boolean(game.winner)} onClick={() => setGame((state) => chooseItem(state, item.id))}>{armed ? "本回合使用" : "准备使用"}</button>
+                  <div><strong>{item.name}</strong><span>{item.price}$ / {item.note}</span></div>
                 </div>
               );
             })}
@@ -255,35 +259,17 @@ export function App() {
         </section>
 
         <section className="panel deckPanel">
-          <div className="panelTitle">
-            <Swords size={18} />
-            <h2>卡组开关</h2>
-          </div>
+          <div className="panelTitle"><Swords size={18} /><h2>卡组开关</h2></div>
           <div className="deckColumns">
-            <DeckToggles
-              title="玩家卡组"
-              cards={game.playerHand.concat(game.playerDiscard)}
-              onToggle={(id) => setGame((state) => toggleCardInDeck(state, "player", id))}
-            />
-            <DeckToggles
-              title="Boss 卡组"
-              cards={game.bossHand.concat(game.bossDiscard)}
-              onToggle={(id) => setGame((state) => toggleCardInDeck(state, "boss", id))}
-            />
+            <DeckToggles title="玩家卡组" side="player" cards={game.playerHand.concat(game.playerDiscard)} onToggle={(id) => setGame((state) => toggleCardInDeck(state, "player", id))} />
+            <DeckToggles title="Boss 卡组" side="boss" cards={game.bossHand.concat(game.bossDiscard)} onToggle={(id) => setGame((state) => toggleCardInDeck(state, "boss", id))} />
           </div>
         </section>
 
         <section className="panel logPanel">
-          <div className="panelTitle">
-            <History size={18} />
-            <h2>战斗日志</h2>
-          </div>
+          <div className="panelTitle"><History size={18} /><h2>战斗日志</h2></div>
           <div className="logs">
-            {game.logs.map((log) => (
-              <p key={log.id} className={`log ${log.tone}`}>
-                {log.text}
-              </p>
-            ))}
+            {game.logs.map((log) => <p key={log.id} className={`log ${log.tone}`}>{log.text}</p>)}
           </div>
         </section>
       </div>
@@ -292,53 +278,32 @@ export function App() {
 }
 
 function StatCard({ icon, label, value, danger = false }) {
-  return (
-    <div className={`statCard ${danger ? "danger" : ""}`}>
-      {icon}
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+  return <div className={`statCard ${danger ? "danger" : ""}`}>{icon}<span>{label}</span><strong>{value}</strong></div>;
 }
 
 function InfoPill({ label, value }) {
-  return (
-    <div className="infoPill">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+  return <div className="infoPill"><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function ToggleRow({ active, title, meta, note, onClick }) {
-  return (
-    <button className={`toggleRow ${active ? "active" : ""}`} onClick={onClick} title={note}>
-      <span>
-        <strong>{title}</strong>
-        <small>{note}</small>
-      </span>
-      <em>{meta}</em>
-    </button>
-  );
+  return <button className={`toggleRow ${active ? "active" : ""}`} onClick={onClick} title={note}><span><strong>{title}</strong><small>{note}</small></span><em>{meta}</em></button>;
 }
 
-function DeckToggles({ title, cards, onToggle }) {
+function DeckToggles({ title, side, cards, onToggle }) {
   const ownedIds = new Set(cards.map((card) => card.id));
   return (
     <div>
       <h3>{title}（{cards.length}/10）</h3>
       <div className="libraryGrid">
-        {cardLibrary.map((card) => (
-          <button
-            key={card.id}
-            className={ownedIds.has(card.id) ? "active" : ""}
-            onClick={() => onToggle(card.id)}
-            title={card.note}
-          >
-            <strong>{card.name}</strong>
-            <span>Lv {card.level}</span>
-          </button>
-        ))}
+        {cardLibrary.map((card) => {
+          const disabled = side === "boss" && card.type === "一次性卡牌";
+          return (
+            <button key={card.id} className={ownedIds.has(card.id) ? "active" : ""} disabled={disabled} onClick={() => onToggle(card.id)} title={disabled ? "Boss 不使用一次性牌" : card.note}>
+              <strong>{card.name}</strong>
+              <span>Lv {card.level}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

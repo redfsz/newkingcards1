@@ -33,6 +33,17 @@ button {
   max-width: 1440px;
 }
 
+.topActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.hiddenInput {
+  display: none;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   color: #637083;
@@ -88,6 +99,42 @@ h3 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: 0 auto 16px;
   max-width: 1440px;
+}
+
+.levelBand {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin: 0 auto 16px;
+  max-width: 1440px;
+  padding: 12px;
+}
+
+.levelBand label {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.levelBand span {
+  color: #637083;
+  font-size: 13px;
+}
+
+.levelBand select {
+  border: 1px solid #cbd5df;
+  border-radius: 8px;
+  height: 36px;
+  min-width: 220px;
+  padding: 0 10px;
+}
+
+.levelBand strong {
+  color: #1d4f73;
 }
 
 .configBand {
@@ -479,6 +526,11 @@ h3 {
   text-align: left;
 }
 
+.libraryGrid button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
 .libraryGrid button.active {
   background: #eef7ff;
   border-color: #85b9df;
@@ -528,6 +580,12 @@ h3 {
   }
 
   .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topActions,
+  .levelBand {
     align-items: stretch;
     flex-direction: column;
   }

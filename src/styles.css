@@ -283,7 +283,13 @@ h3 {
 .workspace {
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+  grid-template-areas:
+    "battle log"
+    "battle log"
+    "intent log"
+    "buff moves"
+    "items deck";
+  grid-template-columns: minmax(0, 1.35fr) minmax(380px, 0.85fr);
   margin: 0 auto;
   max-width: 1440px;
 }
@@ -295,10 +301,39 @@ h3 {
   padding: 16px;
 }
 
-.battlePanel,
-.deckPanel,
+.battlePanel {
+  grid-area: battle;
+  border-color: #cfdbe7;
+  box-shadow: 0 10px 28px rgba(31, 50, 68, 0.06);
+}
+
+.bossIntentPanel {
+  grid-area: intent;
+}
+
 .logPanel {
-  grid-column: span 1;
+  grid-area: log;
+  position: sticky;
+  top: 12px;
+  align-self: start;
+  border-color: #c7d7e5;
+  box-shadow: 0 10px 28px rgba(31, 50, 68, 0.07);
+}
+
+.deckPanel {
+  grid-area: deck;
+}
+
+.workspace > .panel:nth-of-type(3) {
+  grid-area: buff;
+}
+
+.workspace > .panel:nth-of-type(4) {
+  grid-area: moves;
+}
+
+.workspace > .panel:nth-of-type(5) {
+  grid-area: items;
 }
 
 .panelTitle {
@@ -316,17 +351,17 @@ h3 {
 .duelGrid {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.8fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.75fr);
 }
 
 .cardGrid {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
 }
 
 .playCard {
-  aspect-ratio: 0.78;
+  aspect-ratio: 0.74;
   background: #fff8eb;
   border: 1px solid #d6b772;
   border-radius: 8px;
@@ -334,8 +369,8 @@ h3 {
   cursor: pointer;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  min-height: 142px;
-  padding: 10px;
+  min-height: 162px;
+  padding: 12px;
   text-align: left;
 }
 
@@ -353,7 +388,7 @@ h3 {
 
 .playCard strong {
   align-self: center;
-  font-size: 18px;
+  font-size: 20px;
   text-align: center;
 }
 
@@ -644,17 +679,19 @@ h3 {
 .logs {
   display: grid;
   gap: 8px;
-  max-height: 520px;
+  max-height: min(720px, calc(100vh - 220px));
+  min-height: 420px;
   overflow: auto;
   padding-right: 4px;
 }
 
 .log {
-  background: #f8fafc;
+  background: #fff;
   border-left: 4px solid #9cb0c3;
   border-radius: 6px;
   margin: 0;
-  padding: 9px 10px;
+  padding: 11px 12px;
+  line-height: 1.45;
 }
 
 .log.warn {
@@ -662,10 +699,25 @@ h3 {
 }
 
 @media (max-width: 1100px) {
-  .workspace,
+  .workspace {
+    grid-template-areas:
+      "battle"
+      "log"
+      "intent"
+      "buff"
+      "moves"
+      "items"
+      "deck";
+    grid-template-columns: 1fr;
+  }
+
   .duelGrid,
   .deckColumns {
     grid-template-columns: 1fr;
+  }
+
+  .logPanel {
+    position: static;
   }
 
   .statusBand {
@@ -705,4 +757,6 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
+
 

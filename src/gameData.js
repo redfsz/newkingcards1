@@ -1,4 +1,4 @@
-export const cardLibrary = [
+﻿export const cardLibrary = [
   { id: "king", name: "国王", level: 3, type: "基础卡", note: "高等级核心牌，会被平民克制" },
   { id: "minister", name: "大臣", level: 2, type: "基础卡", note: "稳定中位牌" },
   { id: "commoner", name: "平民", level: 1, type: "基础卡", note: "特殊克制国王" },
@@ -69,6 +69,19 @@ export const itemLibrary = [
   { id: "save", name: "续命牌", price: 120, note: "本回合自己输掉的牌不进弃牌堆" }
 ];
 
+export const initialBuffLibrary = [
+  { id: "rich_second_gen", name: "富二代", side: "玩家", note: "金币增加 50%。模拟器中作为经济 Buff 展示，不改变战斗结算" },
+  { id: "unlimited_supply", name: "无限供应", side: "玩家", note: "商店卡牌不会售罄。模拟器中作为经济 Buff 展示，不改变战斗结算" },
+  { id: "random_commoner", name: "随机平民", side: "玩家", note: "玩家平民牌每次对弈等级随机变为 0~2" },
+  { id: "random_king", name: "随机国王", side: "玩家", note: "玩家国王牌每次对弈等级随机变为 0~4" },
+  { id: "surprise_pack", name: "惊喜卡包", side: "玩家", note: "获得卡牌数量在 0~3 中随机。模拟器中作为奖励 Buff 展示，不改变战斗结算" },
+  { id: "xray_boost", name: "透视增强", side: "玩家", note: "开局至少可看穿敌人 2 张牌" },
+  { id: "chaotic_battlefield", name: "混乱战场", side: "玩家", note: "模拟器中会随机从可出牌里替你出牌" },
+  { id: "player_hp_plus", name: "坚韧", side: "玩家", note: "玩家开局最大生命 +3" },
+  { id: "player_move_plus", name: "锋芒", side: "玩家", note: "玩家招式伤害 +1" },
+  { id: "collapse_guard", name: "稳固", side: "玩家", note: "玩家受到崩溃伤害时 -3" }
+];
+
 export const weatherLibrary = [
   { id: "clear", name: "晴朗", note: "无特殊效果" },
   { id: "rain", name: "雨季", note: "经济天气，本模拟器暂不改变胜负" },
@@ -77,102 +90,14 @@ export const weatherLibrary = [
   { id: "warm", name: "暖风", note: "崩溃触发的终极招式直接击败目标" }
 ];
 
-export const resultLabels = {
-  win: "胜",
-  loss: "负",
-  draw: "双输"
-};
+export const resultLabels = { win: "胜", loss: "负", draw: "双输" };
 
 export const levelPresets = [
-  {
-    id: "level_1",
-    name: "第一关：入塔试炼",
-    playerMaxHp: 18,
-    bossMaxHp: 18,
-    weather: "clear",
-    revealCount: 1,
-    playerDeck: ["king", "commoner", "minister", "guard", "maid", "thief", "noble", "assassin", "regicide", "buff_half"],
-    bossDeck: ["king", "commoner", "minister", "guard", "maid", "thief", "noble", "fortune_teller", "rebel", "beggar"],
-    selectedMoves: ["single_win", "double_win", "counter"],
-    selectedBossMoves: ["boss_single", "boss_bait"],
-    ownedItems: ["peek", "plus_half", "minus_half", "save"]
-  },
-  {
-    id: "level_2",
-    name: "第二关：护卫巡逻",
-    playerMaxHp: 18,
-    bossMaxHp: 22,
-    weather: "rain",
-    revealCount: 1,
-    playerDeck: ["king", "commoner", "minister", "guard", "maid", "noble", "queen", "regicide", "rebel", "debuff_half"],
-    bossDeck: ["king", "commoner", "minister", "guard", "guard", "noble", "queen", "strike_blade", "rebel", "beggar"],
-    selectedMoves: ["single_win", "double_win", "counter"],
-    selectedBossMoves: ["boss_single", "boss_double"],
-    ownedItems: ["peek", "plus_half", "minus_half", "plus_one"]
-  },
-  {
-    id: "level_3",
-    name: "第三关：雪花谋士",
-    playerMaxHp: 20,
-    bossMaxHp: 24,
-    weather: "hail",
-    revealCount: 2,
-    playerDeck: ["king", "commoner", "minister", "maid", "thief", "noble", "queen", "fortune_teller", "shadow", "buff_one"],
-    bossDeck: ["king", "commoner", "minister", "maid", "thief", "noble", "snowflake", "fortune_teller", "shadow", "rebel"],
-    selectedMoves: ["single_win", "double_win", "win_win_loss"],
-    selectedBossMoves: ["boss_single", "boss_bait"],
-    ownedItems: ["peek", "plus_half", "plus_one", "save"]
-  },
-  {
-    id: "level_4",
-    name: "第四关：四象门",
-    playerMaxHp: 22,
-    bossMaxHp: 28,
-    weather: "sun",
-    revealCount: 2,
-    playerDeck: ["king", "commoner", "minister", "guard", "four_qinglong", "four_baihu", "four_zhuque", "four_xuanwu", "regicide", "debuff_one"],
-    bossDeck: ["king", "commoner", "minister", "guard", "four_qinglong", "four_baihu", "four_zhuque", "four_xuanwu", "noble", "queen"],
-    selectedMoves: ["single_win", "double_win", "win_win_loss", "comeback"],
-    selectedBossMoves: ["boss_single", "boss_double", "boss_bait"],
-    ownedItems: ["peek", "minus_half", "plus_one", "save"]
-  },
-  {
-    id: "level_5",
-    name: "第五关：伪神赌局",
-    playerMaxHp: 24,
-    bossMaxHp: 30,
-    weather: "clear",
-    revealCount: 3,
-    playerDeck: ["king", "commoner", "minister", "queen", "false_god", "assassin", "fate", "hope", "demon", "survive_round"],
-    bossDeck: ["king", "commoner", "minister", "queen", "false_god", "assassin", "fate", "hope", "demon", "strike_blade"],
-    selectedMoves: ["single_win", "double_win", "counter", "comeback"],
-    selectedBossMoves: ["boss_single", "boss_double", "boss_bait"],
-    ownedItems: ["peek", "plus_one", "minus_half", "save"]
-  },
-  {
-    id: "level_6",
-    name: "第六关：暖风终局",
-    playerMaxHp: 26,
-    bossMaxHp: 34,
-    weather: "warm",
-    revealCount: 3,
-    playerDeck: ["king", "commoner", "minister", "guard", "queen", "civilization", "final_moment", "perfect_match", "regicide", "buff_one"],
-    bossDeck: ["king", "commoner", "minister", "guard", "queen", "civilization", "final_moment", "perfect_match", "rebel", "beggar"],
-    selectedMoves: ["single_win", "double_win", "win_win_loss", "counter"],
-    selectedBossMoves: ["boss_single", "boss_double", "boss_bait"],
-    ownedItems: ["peek", "plus_half", "plus_one", "save"]
-  },
-  {
-    id: "level_7",
-    name: "第七关：王座决战",
-    playerMaxHp: 30,
-    bossMaxHp: 42,
-    weather: "clear",
-    revealCount: 4,
-    playerDeck: ["king", "commoner", "minister", "queen", "noble", "strike_blade", "forge_blade", "false_god", "regicide", "buff_one"],
-    bossDeck: ["king", "commoner", "minister", "queen", "noble", "strike_blade", "forge_blade", "false_god", "civilization", "perfect_match"],
-    selectedMoves: ["single_win", "double_win", "win_win_loss", "counter", "comeback"],
-    selectedBossMoves: ["boss_single", "boss_double", "boss_bait"],
-    ownedItems: ["peek", "plus_one", "minus_half", "save"]
-  }
+  { id: "level_1", name: "第一关：入塔试炼", playerMaxHp: 18, bossMaxHp: 18, weather: "clear", revealCount: 1, initialBuffs: [], playerDeck: ["king", "commoner", "minister", "guard", "maid", "thief", "noble", "assassin", "regicide", "buff_half"], bossDeck: ["king", "commoner", "minister", "guard", "maid", "thief", "noble", "fortune_teller", "rebel", "beggar"], selectedMoves: ["single_win", "double_win", "counter"], selectedBossMoves: ["boss_single", "boss_bait"], ownedItems: ["peek", "plus_half", "minus_half", "save"] },
+  { id: "level_2", name: "第二关：护卫巡逻", playerMaxHp: 18, bossMaxHp: 22, weather: "rain", revealCount: 1, initialBuffs: ["player_hp_plus"], playerDeck: ["king", "commoner", "minister", "guard", "maid", "noble", "queen", "regicide", "rebel", "debuff_half"], bossDeck: ["king", "commoner", "minister", "guard", "guard", "noble", "queen", "strike_blade", "rebel", "beggar"], selectedMoves: ["single_win", "double_win", "counter"], selectedBossMoves: ["boss_single", "boss_double"], ownedItems: ["peek", "plus_half", "minus_half", "plus_one"] },
+  { id: "level_3", name: "第三关：雪花谋士", playerMaxHp: 20, bossMaxHp: 24, weather: "hail", revealCount: 2, initialBuffs: ["xray_boost"], playerDeck: ["king", "commoner", "minister", "maid", "thief", "noble", "queen", "fortune_teller", "shadow", "buff_one"], bossDeck: ["king", "commoner", "minister", "maid", "thief", "noble", "snowflake", "fortune_teller", "shadow", "rebel"], selectedMoves: ["single_win", "double_win", "win_win_loss"], selectedBossMoves: ["boss_single", "boss_bait"], ownedItems: ["peek", "plus_half", "plus_one", "save"] },
+  { id: "level_4", name: "第四关：四象门", playerMaxHp: 22, bossMaxHp: 28, weather: "sun", revealCount: 2, initialBuffs: ["collapse_guard"], playerDeck: ["king", "commoner", "minister", "guard", "four_qinglong", "four_baihu", "four_zhuque", "four_xuanwu", "regicide", "debuff_one"], bossDeck: ["king", "commoner", "minister", "guard", "four_qinglong", "four_baihu", "four_zhuque", "four_xuanwu", "noble", "queen"], selectedMoves: ["single_win", "double_win", "win_win_loss", "comeback"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "minus_half", "plus_one", "save"] },
+  { id: "level_5", name: "第五关：伪神赌局", playerMaxHp: 24, bossMaxHp: 30, weather: "clear", revealCount: 3, initialBuffs: ["random_commoner"], playerDeck: ["king", "commoner", "minister", "queen", "false_god", "assassin", "fate", "hope", "demon", "survive_round"], bossDeck: ["king", "commoner", "minister", "queen", "false_god", "assassin", "fate", "hope", "demon", "strike_blade"], selectedMoves: ["single_win", "double_win", "counter", "comeback"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "plus_one", "minus_half", "save"] },
+  { id: "level_6", name: "第六关：暖风终局", playerMaxHp: 26, bossMaxHp: 34, weather: "warm", revealCount: 3, initialBuffs: ["player_move_plus", "random_king"], playerDeck: ["king", "commoner", "minister", "guard", "queen", "civilization", "final_moment", "perfect_match", "regicide", "buff_one"], bossDeck: ["king", "commoner", "minister", "guard", "queen", "civilization", "final_moment", "perfect_match", "rebel", "beggar"], selectedMoves: ["single_win", "double_win", "win_win_loss", "counter"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "plus_half", "plus_one", "save"] },
+  { id: "level_7", name: "第七关：王座决战", playerMaxHp: 30, bossMaxHp: 42, weather: "clear", revealCount: 4, initialBuffs: ["chaotic_battlefield", "collapse_guard"], playerDeck: ["king", "commoner", "minister", "queen", "noble", "strike_blade", "forge_blade", "false_god", "regicide", "buff_one"], bossDeck: ["king", "commoner", "minister", "queen", "noble", "strike_blade", "forge_blade", "false_god", "civilization", "perfect_match"], selectedMoves: ["single_win", "double_win", "win_win_loss", "counter", "comeback"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "plus_one", "minus_half", "save"] }
 ];

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Activity,
   BadgeDollarSign,
   Download,
@@ -16,6 +16,7 @@ import React, { useMemo, useRef, useState } from "react";
 import {
   bossMoveLibrary,
   cardLibrary,
+  initialBuffLibrary,
   itemLibrary,
   levelPresets,
   moveLibrary,
@@ -37,6 +38,7 @@ import {
   setWeather,
   stateToLevelConfig,
   toggleCardInDeck,
+  toggleInitialBuff,
   toggleItem,
   toggleMove
 } from "./simulator.js";
@@ -93,19 +95,10 @@ export function App() {
           <h1>关卡模拟器</h1>
         </div>
         <div className="topActions">
-          <button className="iconButton" onClick={exportLevel}>
-            <Download size={18} />
-            导出关卡
-          </button>
-          <button className="iconButton" onClick={() => fileInputRef.current?.click()}>
-            <Upload size={18} />
-            上传关卡
-          </button>
+          <button className="iconButton" onClick={exportLevel}><Download size={18} />导出关卡</button>
+          <button className="iconButton" onClick={() => fileInputRef.current?.click()}><Upload size={18} />上传关卡</button>
           <input ref={fileInputRef} className="hiddenInput" type="file" accept="application/json,.json" onChange={importLevel} />
-          <button className="iconButton primary" onClick={() => setGame((state) => resetBattle(state))}>
-            <RotateCcw size={18} />
-            重开本场
-          </button>
+          <button className="iconButton primary" onClick={() => setGame((state) => resetBattle(state))}><RotateCcw size={18} />重开本场</button>
         </div>
       </header>
 
@@ -113,12 +106,8 @@ export function App() {
         <label>
           <span>当前关卡</span>
           <select value={game.currentLevelId} onChange={(event) => applyLevel(event.target.value)}>
-            {levelPresets.map((level) => (
-              <option key={level.id} value={level.id}>{level.name}</option>
-            ))}
-            {!levelPresets.some((level) => level.id === game.currentLevelId) && (
-              <option value={game.currentLevelId}>{game.currentLevelName}</option>
-            )}
+            {levelPresets.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}
+            {!levelPresets.some((level) => level.id === game.currentLevelId) && <option value={game.currentLevelId}>{game.currentLevelName}</option>}
           </select>
         </label>
         <strong>{game.currentLevelName}</strong>
@@ -133,81 +122,39 @@ export function App() {
       </section>
 
       <section className="configBand">
-        <label>
-          <span>玩家最大生命</span>
-          <input type="number" min="1" max="99" value={game.playerMaxHp} onChange={(event) => setGame((state) => setMaxHp(state, "player", event.target.value))} />
-        </label>
-        <label>
-          <span>Boss 最大生命</span>
-          <input type="number" min="1" max="99" value={game.bossMaxHp} onChange={(event) => setGame((state) => setMaxHp(state, "boss", event.target.value))} />
-        </label>
+        <label><span>玩家基础生命</span><input type="number" min="1" max="99" value={game.basePlayerMaxHp ?? game.playerMaxHp} onChange={(event) => setGame((state) => setMaxHp(state, "player", event.target.value))} /></label>
+        <label><span>Boss 基础生命</span><input type="number" min="1" max="99" value={game.baseBossMaxHp ?? game.bossMaxHp} onChange={(event) => setGame((state) => setMaxHp(state, "boss", event.target.value))} /></label>
       </section>
 
-      {game.winner && (
-        <section className={`resultBanner ${game.winner === "player" ? "win" : "loss"}`}>
-          {game.winner === "player" ? "玩家胜利：Boss 已被击败" : "战斗失败：玩家已经倒下"}
-        </section>
-      )}
+      {game.winner && <section className={`resultBanner ${game.winner === "player" ? "win" : "loss"}`}>{game.winner === "player" ? "玩家胜利：Boss 已被击败" : "战斗失败：玩家已经倒下"}</section>}
 
       <div className="workspace">
         <section className="panel battlePanel">
-          <div className="panelTitle">
-            <Swords size={18} />
-            <h2>出牌区</h2>
-          </div>
+          <div className="panelTitle"><Swords size={18} /><h2>出牌区</h2></div>
           <div className="duelGrid">
             <div>
               <h3>我的手牌</h3>
               <div className="cardGrid">
                 {game.playerHand.map((card) => (
-                  <button
-                    key={card.key}
-                    className={`playCard ${legalKeys.has(card.key) ? "" : "disabled"}`}
-                    disabled={!legalKeys.has(card.key) || Boolean(game.winner)}
-                    onClick={() => setGame((state) => playRound(state, card.key))}
-                    title={card.note}
-                  >
-                    <span className="cardType">{card.type}</span>
-                    <strong>{card.name}</strong>
-                    <span className="level">Lv {card.level}</span>
+                  <button key={card.key} className={`playCard ${legalKeys.has(card.key) ? "" : "disabled"}`} disabled={!legalKeys.has(card.key) || Boolean(game.winner)} onClick={() => setGame((state) => playRound(state, card.key))} title={card.note}>
+                    <span className="cardType">{card.type}</span><strong>{card.name}</strong><span className="level">Lv {card.level}</span>
                   </button>
                 ))}
               </div>
             </div>
-
             <div>
               <div className="sectionHeader">
                 <h3>Boss 透视牌</h3>
-                <label className="revealControl">
-                  <span>透视 {game.revealCount} 张</span>
-                  <input type="range" min="0" max="5" value={game.revealCount} onChange={(event) => setGame((state) => setRevealCount(state, event.target.value))} />
-                </label>
+                <label className="revealControl"><span>基础透视 {game.baseRevealCount ?? game.revealCount} 张</span><input type="range" min="0" max="5" value={game.baseRevealCount ?? game.revealCount} onChange={(event) => setGame((state) => setRevealCount(state, event.target.value))} /></label>
               </div>
               <div className="bossPeek">
-                {visibleBossCards.map((card) => (
-                  <div className={`miniCard ${card.willPlay ? "willPlay" : ""}`} key={card.key}>
-                    <span>
-                      <strong>{card.name}</strong>
-                      <small>{statusText(card.status)}</small>
-                    </span>
-                    <em>Lv {card.level}</em>
-                  </div>
-                ))}
+                {visibleBossCards.map((card) => <div className={`miniCard ${card.willPlay ? "willPlay" : ""}`} key={card.key}><span><strong>{card.name}</strong><small>{statusText(card.status)}</small></span><em>Lv {card.level}</em></div>)}
                 {game.revealCount === 0 && <div className="miniCard faceDown">当前没有透视任何 Boss 手牌</div>}
               </div>
-              <div className={plannedCardVisible ? "peekResult" : "peekResult unknown"}>
-                <Eye size={16} />
-                {plannedCardVisible ? `本回合已知：Boss 将出【${plannedVisibleCard?.name}】` : "本回合未知：Boss 要出的牌不在透视范围内"}
-              </div>
-              {predictedBossCard && (
-                <div className="peekResult">
-                  <Eye size={16} />
-                  {`预见牌：Boss 倾向出【${predictedBossCard.name}】`}
-                </div>
-              )}
+              <div className={plannedCardVisible ? "peekResult" : "peekResult unknown"}><Eye size={16} />{plannedCardVisible ? `本回合已知：Boss 将出【${plannedVisibleCard?.name}】` : "本回合未知：Boss 要出的牌不在透视范围内"}</div>
+              {predictedBossCard && <div className="peekResult"><Eye size={16} />{`预见牌：Boss 倾向出【${predictedBossCard.name}】`}</div>}
             </div>
           </div>
-
           <div className="battleInfo">
             <InfoPill label="玩家弃牌" value={game.playerDiscard.length} />
             <InfoPill label="Boss 弃牌" value={game.bossDiscard.length} />
@@ -217,43 +164,31 @@ export function App() {
         </section>
 
         <section className="panel">
-          <div className="panelTitle"><Sparkles size={18} /><h2>招式</h2></div>
-          <h3>玩家携带</h3>
-          <div className="moveList">
-            {moveLibrary.map((move) => (
-              <ToggleRow key={move.id} active={game.selectedMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "player"))} />
-            ))}
-          </div>
-          <h3>Boss 携带</h3>
-          <div className="moveList">
-            {bossMoveLibrary.map((move) => (
-              <ToggleRow key={move.id} active={game.selectedBossMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "boss"))} />
+          <div className="panelTitle"><Sparkles size={18} /><h2>初始 Buff</h2></div>
+          <div className="buffGrid">
+            {initialBuffLibrary.map((buff) => (
+              <button key={buff.id} className={`buffButton ${(game.initialBuffs ?? []).includes(buff.id) ? "active" : ""}`} onClick={() => setGame((state) => toggleInitialBuff(state, buff.id))} title={buff.note}>
+                <span>{buff.side}</span><strong>{buff.name}</strong><small>{buff.note}</small>
+              </button>
             ))}
           </div>
         </section>
 
         <section className="panel">
+          <div className="panelTitle"><Sparkles size={18} /><h2>招式</h2></div>
+          <h3>玩家携带</h3><div className="moveList">{moveLibrary.map((move) => <ToggleRow key={move.id} active={game.selectedMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "player"))} />)}</div>
+          <h3>Boss 携带</h3><div className="moveList">{bossMoveLibrary.map((move) => <ToggleRow key={move.id} active={game.selectedBossMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "boss"))} />)}</div>
+        </section>
+
+        <section className="panel">
           <div className="panelTitle"><BadgeDollarSign size={18} /><h2>道具与天气</h2></div>
-          <h3>天气</h3>
-          <div className="segmented">
-            {weatherLibrary.map((weather) => (
-              <button key={weather.id} className={game.weather === weather.id ? "active" : ""} onClick={() => setGame((state) => setWeather(state, weather.id))} title={weather.note}>
-                {weather.name}
-              </button>
-            ))}
-          </div>
+          <h3>天气</h3><div className="segmented">{weatherLibrary.map((weather) => <button key={weather.id} className={game.weather === weather.id ? "active" : ""} onClick={() => setGame((state) => setWeather(state, weather.id))} title={weather.note}>{weather.name}</button>)}</div>
           <h3>一次性道具牌</h3>
           <div className="itemList">
             {itemLibrary.map((item) => {
               const owned = game.ownedItems.includes(item.id);
               const armed = game.activeItemId === item.id;
-              return (
-                <div className={`itemRow ${owned ? "" : "muted"}`} key={item.id}>
-                  <button className={owned ? "toggle active" : "toggle"} onClick={() => setGame((state) => toggleItem(state, item.id))}>{owned ? "已买" : "未买"}</button>
-                  <button className={`armButton ${armed ? "armed" : ""}`} disabled={!owned || Boolean(game.winner)} onClick={() => setGame((state) => chooseItem(state, item.id))}>{armed ? "本回合使用" : "准备使用"}</button>
-                  <div><strong>{item.name}</strong><span>{item.price}$ / {item.note}</span></div>
-                </div>
-              );
+              return <div className={`itemRow ${owned ? "" : "muted"}`} key={item.id}><button className={owned ? "toggle active" : "toggle"} onClick={() => setGame((state) => toggleItem(state, item.id))}>{owned ? "已买" : "未买"}</button><button className={`armButton ${armed ? "armed" : ""}`} disabled={!owned || Boolean(game.winner)} onClick={() => setGame((state) => chooseItem(state, item.id))}>{armed ? "本回合使用" : "准备使用"}</button><div><strong>{item.name}</strong><span>{item.price}$ / {item.note}</span></div></div>;
             })}
           </div>
         </section>
@@ -266,51 +201,17 @@ export function App() {
           </div>
         </section>
 
-        <section className="panel logPanel">
-          <div className="panelTitle"><History size={18} /><h2>战斗日志</h2></div>
-          <div className="logs">
-            {game.logs.map((log) => <p key={log.id} className={`log ${log.tone}`}>{log.text}</p>)}
-          </div>
-        </section>
+        <section className="panel logPanel"><div className="panelTitle"><History size={18} /><h2>战斗日志</h2></div><div className="logs">{game.logs.map((log) => <p key={log.id} className={`log ${log.tone}`}>{log.text}</p>)}</div></section>
       </div>
     </main>
   );
 }
 
-function StatCard({ icon, label, value, danger = false }) {
-  return <div className={`statCard ${danger ? "danger" : ""}`}>{icon}<span>{label}</span><strong>{value}</strong></div>;
-}
-
-function InfoPill({ label, value }) {
-  return <div className="infoPill"><span>{label}</span><strong>{value}</strong></div>;
-}
-
-function ToggleRow({ active, title, meta, note, onClick }) {
-  return <button className={`toggleRow ${active ? "active" : ""}`} onClick={onClick} title={note}><span><strong>{title}</strong><small>{note}</small></span><em>{meta}</em></button>;
-}
-
+function StatCard({ icon, label, value, danger = false }) { return <div className={`statCard ${danger ? "danger" : ""}`}>{icon}<span>{label}</span><strong>{value}</strong></div>; }
+function InfoPill({ label, value }) { return <div className="infoPill"><span>{label}</span><strong>{value}</strong></div>; }
+function ToggleRow({ active, title, meta, note, onClick }) { return <button className={`toggleRow ${active ? "active" : ""}`} onClick={onClick} title={note}><span><strong>{title}</strong><small>{note}</small></span><em>{meta}</em></button>; }
 function DeckToggles({ title, side, cards, onToggle }) {
   const ownedIds = new Set(cards.map((card) => card.id));
-  return (
-    <div>
-      <h3>{title}（{cards.length}/10）</h3>
-      <div className="libraryGrid">
-        {cardLibrary.map((card) => {
-          const disabled = side === "boss" && card.type === "一次性卡牌";
-          return (
-            <button key={card.id} className={ownedIds.has(card.id) ? "active" : ""} disabled={disabled} onClick={() => onToggle(card.id)} title={disabled ? "Boss 不使用一次性牌" : card.note}>
-              <strong>{card.name}</strong>
-              <span>Lv {card.level}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+  return <div><h3>{title}（{cards.length}/10）</h3><div className="libraryGrid">{cardLibrary.map((card) => { const disabled = side === "boss" && card.type === "一次性卡牌"; return <button key={card.id} className={ownedIds.has(card.id) ? "active" : ""} disabled={disabled} onClick={() => onToggle(card.id)} title={disabled ? "Boss 不使用一次性牌" : card.note}><strong>{card.name}</strong><span>Lv {card.level}</span></button>; })}</div></div>;
 }
-
-function statusText(status) {
-  if (status === "hand") return "还在手牌";
-  if (status === "discard") return "已进弃牌";
-  return "未知状态";
-}
+function statusText(status) { if (status === "hand") return "还在手牌"; if (status === "discard") return "已进弃牌"; return "未知状态"; }

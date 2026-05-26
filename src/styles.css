@@ -477,6 +477,41 @@ h3 {
   padding: 8px;
 }
 
+.buffGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.buffButton {
+  background: #f8fafc;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  min-height: 92px;
+  padding: 10px;
+  text-align: left;
+}
+
+.buffButton.active {
+  background: #e9f5ee;
+  border-color: #7fbe96;
+}
+
+.buffButton span {
+  color: #1d4f73;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.buffButton small {
+  color: #667587;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .itemRow.muted {
   opacity: 0.55;
 }

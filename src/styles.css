@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color: #17202a;
   background: #f4f6f8;
   font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
@@ -199,6 +199,70 @@ h3 {
   color: #b83232;
 }
 
+
+.statCard.highlight {
+  background: #fff7e8;
+  border-color: #e2bd7a;
+}
+
+.statCard.highlight svg,
+.statCard.highlight strong {
+  color: #9b5d16;
+}
+
+.bossIntentPanel {
+  border-color: #d8c29d;
+  background: #fffdf8;
+}
+
+.pressureBox {
+  align-items: center;
+  border: 1px solid #ead7b8;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.pressureBox span {
+  color: #80603a;
+  display: block;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.pressureBox strong {
+  font-size: 18px;
+}
+
+.pressureDots {
+  display: flex;
+  gap: 7px;
+}
+
+.pressureDots i {
+  background: #e5d8c4;
+  border-radius: 999px;
+  display: block;
+  height: 14px;
+  width: 28px;
+}
+
+.pressureDots i.active {
+  background: #b86621;
+}
+
+.decisionText {
+  color: #2f3742;
+  line-height: 1.55;
+  margin: 10px 0 0;
+}
+
+.decisionText.muted {
+  color: #667587;
+  font-size: 13px;
+}
 .resultBanner {
   border-radius: 8px;
   color: #fff;
@@ -641,3 +705,4 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+

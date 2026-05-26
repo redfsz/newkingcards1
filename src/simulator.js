@@ -1,5 +1,6 @@
 ﻿import {
   bossMoveLibrary,
+  bossPersonaLibrary,
   cardLibrary,
   initialBuffLibrary,
   itemLibrary,
@@ -11,6 +12,7 @@
 const byId = new Map(cardLibrary.map((card) => [card.id, card]));
 const itemById = new Map(itemLibrary.map((item) => [item.id, item]));
 const buffById = new Map(initialBuffLibrary.map((buff) => [buff.id, buff]));
+const personaById = new Map(bossPersonaLibrary.map((persona) => [persona.id, persona]));
 
 let nextInstance = 1;
 
@@ -24,10 +26,12 @@ export function createStateFromConfig(config) {
   const effective = applyInitialBuffs(normalized);
   const bossHand = createCards(normalized.bossDeck, "b");
   const buffNames = normalized.initialBuffs.map((id) => buffById.get(id)?.name).filter(Boolean).join("、") || "无";
+  const persona = personaById.get(normalized.bossPersona) ?? bossPersonaLibrary[0];
 
   return {
     currentLevelId: normalized.id,
     currentLevelName: normalized.name,
+    bossPersona: persona,
     basePlayerMaxHp: normalized.playerMaxHp,
     baseBossMaxHp: normalized.bossMaxHp,
     baseRevealCount: normalized.revealCount,
@@ -47,6 +51,7 @@ export function createStateFromConfig(config) {
     bossPattern: [],
     playerCollapseStacks: 0,
     bossCollapseStacks: 0,
+    bossPressure: 0,
     selectedMoves: normalized.selectedMoves,
     selectedBossMoves: normalized.selectedBossMoves,
     ownedItems: normalized.ownedItems,
@@ -56,7 +61,7 @@ export function createStateFromConfig(config) {
     round: 1,
     winner: null,
     logs: [
-      { id: 0, tone: "info", text: `载入关卡：${normalized.name}。初始 Buff：${buffNames}。` }
+      { id: 0, tone: "info", text: `载入关卡：${normalized.name}。Boss：${persona.name}（${persona.style}）。初始 Buff：${buffNames}。` }
     ]
   };
 }
@@ -68,6 +73,7 @@ export function stateToLevelConfig(state) {
     playerMaxHp: state.basePlayerMaxHp ?? state.playerMaxHp,
     bossMaxHp: state.baseBossMaxHp ?? state.bossMaxHp,
     weather: state.weather,
+    bossPersona: state.bossPersona?.id ?? state.bossPersona ?? "gatekeeper",
     revealCount: state.baseRevealCount ?? state.revealCount,
     initialBuffs: state.initialBuffs ?? [],
     playerDeck: collectDeckIds(state.playerHand, state.playerDiscard),
@@ -87,6 +93,7 @@ export function normalizeLevelConfig(config) {
     playerMaxHp: clampNumber(source.playerMaxHp, 1, 99, fallback.playerMaxHp),
     bossMaxHp: clampNumber(source.bossMaxHp, 1, 99, fallback.bossMaxHp),
     weather: source.weather || "clear",
+    bossPersona: personaById.has(source.bossPersona) ? source.bossPersona : fallback.bossPersona ?? "gatekeeper",
     revealCount: clampNumber(source.revealCount, 0, 10, fallback.revealCount),
     initialBuffs: sanitizeIds(source.initialBuffs, initialBuffLibrary, [], initialBuffLibrary.length, true),
     playerDeck: sanitizeDeck(source.playerDeck, "player"),
@@ -196,6 +203,7 @@ export function playRound(state, playerCardKey) {
   next.bossLastCardKey = bossCard.key;
   next.playerPattern = trimPattern([...next.playerPattern, result.player]);
   next.bossPattern = trimPattern([...next.bossPattern, result.boss]);
+  next.bossPressure = nextBossPressure(state, result.boss, logs);
   next = applyMoves(next, "player", logs);
   next = applyMoves(next, "boss", logs);
 
@@ -306,27 +314,59 @@ function chooseBossCard(state) {
   return rankBossCardsByPlan(state, legal)[0];
 }
 function rankBossCardsByPlan(state, legal) {
-  const phase = (state.round + state.bossCollapseStacks) % 4;
+  const phase = state.bossPressure ?? 0;
   return [...legal].sort((a, b) => {
-    const scoreB = scoreBossCard(state, b, phase);
-    const scoreA = scoreBossCard(state, a, phase);
+    const scoreB = scoreBossCard(state, b, phase, legal);
+    const scoreA = scoreBossCard(state, a, phase, legal);
     if (scoreB !== scoreA) return scoreB - scoreA;
     return a.key.localeCompare(b.key);
   });
 }
-function scoreBossCard(state, card, phase) {
+function scoreBossCard(state, card, phase, legal) {
+  const personaId = state.bossPersona?.id ?? "gatekeeper";
   const level = adjustedLevel(card, state.weather, null, "boss", state.bossHand);
+  const highest = Math.max(...legal.map((entry) => adjustedLevel(entry, state.weather, null, "boss", state.bossHand)));
+  const topThree = [...legal]
+    .sort((a, b) => adjustedLevel(b, state.weather, null, "boss", state.bossHand) - adjustedLevel(a, state.weather, null, "boss", state.bossHand))
+    .slice(0, 3)
+    .map((entry) => entry.key);
   let score = 0;
-  if (card.type === "能力卡") score += 100 - state.round;
-  if (state.bossPattern.at(-1) === "loss") score += level * 6;
-  else if (phase === 0) score += level * 5;
-  else if (phase === 1) score += (4 - level) * 4;
-  else if (phase === 2) score -= Math.abs(level - 2) * 3;
-  else score += level * 3;
-  if (card.id === "commoner" && state.playerHand.some((playerCard) => playerCard.id === "king")) score += 4;
-  if (card.id === "king" && state.playerHand.some((playerCard) => playerCard.id === "commoner")) score -= 3;
-  if (card.id === "assassin" && state.bossHp <= 8) score += 2;
-  if (state.bossHand.length <= 3) score += level;
+
+  if (phase >= 3) score += level === highest ? 120 : level * 10;
+  if (card.type === "能力卡") score += personaId === "strategist" || phase === 0 ? 90 : 12;
+
+  if (personaId === "gatekeeper") {
+    if (phase <= 1) score += 20 - Math.abs(level - 2) * 8;
+    if (phase === 2) score += canBeatLikelyPlayerCard(state, card) ? 55 : level * 5;
+    if ((card.id === "king" || card.id === "commoner") && phase < 2) score -= 18;
+  } else if (personaId === "sentinel") {
+    score += phase <= 1 ? (4 - level) * 8 : level * 8;
+    if ((card.id === "king" || card.id === "commoner") && phase < 3) score -= 24;
+    if (phase === 3 && card.id === "commoner" && legal.length > 1) score -= 20;
+  } else if (personaId === "strategist") {
+    if (card.id === "commoner" && state.playerHand.some((playerCard) => playerCard.id === "king")) score += phase < 3 ? 35 : 8;
+    if (phase === 2 && wouldBreakPlayerPattern(state)) score += cardLikelyWins(state, card) ? 50 : 18;
+    score += card.type === "额外功能卡" ? 20 : 0;
+  } else if (personaId === "four_symbols") {
+    if (card.id.startsWith("four_")) score += phase <= 2 ? 80 : 35;
+    score += level * (phase >= 2 ? 10 : 4);
+  } else if (personaId === "gambler") {
+    if (card.type === "额外功能卡") score += 55;
+    if (["false_god", "fate", "assassin"].includes(card.id)) score += 35;
+    if (phase >= 3) score += topThree.includes(card.key) ? 70 : 0;
+    score += deterministicRange(card.key + state.round, -8, 16);
+  } else if (personaId === "executioner") {
+    score += level * 14;
+    if (cardLikelyWins(state, card)) score += 45;
+    if (wouldExtendBossWinPattern(state, card)) score += 30;
+  } else if (personaId === "king") {
+    score += phase <= 1 ? 22 - Math.abs(level - 2.3) * 6 : level * 10;
+    if (card.id === "commoner" && state.playerHand.some((playerCard) => playerCard.id === "king")) score += phase < 3 ? 55 : 18;
+    if (card.id === "king" && state.playerHand.some((playerCard) => playerCard.id === "commoner")) score -= 28;
+  }
+
+  if (state.bossPattern.at(-1) === "loss") score += level * 4;
+  if (state.bossHand.length <= 3) score += level * 2;
   return score;
 }
 function applyMoves(state, side, logs) {
@@ -367,6 +407,30 @@ function handleCollapse(state, side, logs) {
   }
   return next;
 }
+function nextBossPressure(state, bossResult, logs) {
+  const current = state.bossPressure ?? 0;
+  if (current >= 3) {
+    logs.push("Boss 压力爆发：本回合按满压力规则出牌，压力清零。");
+    return 0;
+  }
+  if (bossResult === "loss") return Math.min(3, current + 1);
+  if (bossResult === "win") return Math.max(0, current - 1);
+  return current;
+}
+function cardLikelyWins(state, bossCard) {
+  return state.playerHand.some((playerCard) => compareCards(playerCard, bossCard, state.weather, null, { playerHandBeforePlay: state.playerHand, bossHandBeforePlay: state.bossHand, activeBuffs: state.initialBuffs ?? [] }).boss === "win");
+}
+function canBeatLikelyPlayerCard(state, bossCard) {
+  const visible = state.playerHand.filter((card) => card.key !== state.playerLastCardKey);
+  return visible.some((playerCard) => compareCards(playerCard, bossCard, state.weather, null, { playerHandBeforePlay: state.playerHand, bossHandBeforePlay: state.bossHand, activeBuffs: state.initialBuffs ?? [] }).boss === "win");
+}
+function wouldBreakPlayerPattern(state) {
+  const pattern = state.playerPattern ?? [];
+  return pattern.at(-1) === "win" || pattern.slice(-2).every((entry) => entry === "win");
+}
+function wouldExtendBossWinPattern(state, card) {
+  return state.bossPattern.at(-1) === "win" || cardLikelyWins(state, card);
+}
 function trimPattern(pattern) { return pattern.slice(-4); }
 function pickChaoticPlayerCard(cards, round) {
   const index = Math.abs((round * 37 + cards.length * 11) % cards.length);
@@ -385,3 +449,5 @@ function addLogs(state, entries, tone = "info") { const start = state.logs.lengt
 function formatRoundLog(round, playerCard, bossCard, result, item) { const itemText = item ? `，使用【${item.name}】` : ""; return `第 ${round} 回合：玩家出【${playerCard.name}】(${result.playerLevel})，Boss 出【${bossCard.name}】(${result.bossLevel})${itemText}，结果：${outcomeText(result.player)}。${result.reason}。`; }
 function outcomeText(outcome) { if (outcome === "win") return "玩家胜"; if (outcome === "loss") return "玩家负"; return "双方失败"; }
 function weatherName(weather) { const names = { clear: "晴朗", rain: "雨季", sun: "烈日", hail: "冰雹", warm: "暖风" }; return names[weather] ?? weather; }
+
+

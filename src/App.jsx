@@ -54,6 +54,9 @@ export function App() {
   const plannedVisibleCard = visibleBossCards.find((card) => card.willPlay);
   const playerPatternText = game.playerPattern.map((entry) => resultLabels[entry]).join(" ");
   const bossPatternText = game.bossPattern.map((entry) => resultLabels[entry]).join(" ");
+  const bossPressure = game.bossPressure ?? 0;
+  const bossDecisionText = game.bossPersona?.pressureRules?.[Math.min(3, bossPressure)] ?? "按当前手牌选择出牌。";
+  const bossPressureTitle = `当前 Boss：${game.bossPersona?.name ?? "Boss"}（${game.bossPersona?.style ?? "默认"}）\n压力 ${bossPressure}/3\n本回合决策：${bossDecisionText}\n满压力：${game.bossPersona?.fullPressure ?? "打出当前最高等级牌，然后压力清零。"}`;
 
   function applyLevel(levelId) {
     const level = levelPresets.find((entry) => entry.id === levelId);
@@ -118,7 +121,7 @@ export function App() {
         <StatCard icon={<ShieldAlert />} label="Boss 生命" value={`${game.bossHp}/${game.bossMaxHp}`} danger={game.bossHp <= 8} />
         <StatCard icon={<Activity />} label="当前回合" value={game.round} />
         <StatCard icon={<Flame />} label="天气" value={weatherLibrary.find((w) => w.id === game.weather)?.name ?? game.weather} />
-        <StatCard icon={<Sparkles />} label="崩溃层数" value={`我 ${game.playerCollapseStacks} / Boss ${game.bossCollapseStacks}`} />
+        <StatCard icon={<Sparkles />} label="Boss 压力" value={`${bossPressure}/3`} title={bossPressureTitle} highlight />
       </section>
 
       <section className="configBand">
@@ -129,6 +132,21 @@ export function App() {
       {game.winner && <section className={`resultBanner ${game.winner === "player" ? "win" : "loss"}`}>{game.winner === "player" ? "玩家胜利：Boss 已被击败" : "战斗失败：玩家已经倒下"}</section>}
 
       <div className="workspace">
+        <section className="panel bossIntentPanel">
+          <div className="panelTitle"><ShieldAlert size={18} /><h2>Boss 性格与压力</h2></div>
+          <div className="pressureBox" title={bossPressureTitle}>
+            <div>
+              <span>{game.bossPersona?.style}</span>
+              <strong>{game.bossPersona?.name}</strong>
+            </div>
+            <div className="pressureDots" aria-label={`压力 ${bossPressure}/3`}>
+              {[0, 1, 2].map((dot) => <i key={dot} className={dot < bossPressure ? "active" : ""} />)}
+            </div>
+          </div>
+          <p className="decisionText"><strong>本回合决策：</strong>{bossDecisionText}</p>
+          <p className="decisionText muted"><strong>满压力：</strong>{game.bossPersona?.fullPressure}</p>
+        </section>
+
         <section className="panel battlePanel">
           <div className="panelTitle"><Swords size={18} /><h2>出牌区</h2></div>
           <div className="duelGrid">
@@ -207,7 +225,7 @@ export function App() {
   );
 }
 
-function StatCard({ icon, label, value, danger = false }) { return <div className={`statCard ${danger ? "danger" : ""}`}>{icon}<span>{label}</span><strong>{value}</strong></div>; }
+function StatCard({ icon, label, value, danger = false, highlight = false, title = "" }) { return <div className={`statCard ${danger ? "danger" : ""} ${highlight ? "highlight" : ""}`} title={title}>{icon}<span>{label}</span><strong>{value}</strong></div>; }
 function InfoPill({ label, value }) { return <div className="infoPill"><span>{label}</span><strong>{value}</strong></div>; }
 function ToggleRow({ active, title, meta, note, onClick }) { return <button className={`toggleRow ${active ? "active" : ""}`} onClick={onClick} title={note}><span><strong>{title}</strong><small>{note}</small></span><em>{meta}</em></button>; }
 function DeckToggles({ title, side, cards, onToggle }) {
@@ -215,3 +233,5 @@ function DeckToggles({ title, side, cards, onToggle }) {
   return <div><h3>{title}（{cards.length}/10）</h3><div className="libraryGrid">{cardLibrary.map((card) => { const disabled = side === "boss" && card.type === "一次性卡牌"; return <button key={card.id} className={ownedIds.has(card.id) ? "active" : ""} disabled={disabled} onClick={() => onToggle(card.id)} title={disabled ? "Boss 不使用一次性牌" : card.note}><strong>{card.name}</strong><span>Lv {card.level}</span></button>; })}</div></div>;
 }
 function statusText(status) { if (status === "hand") return "还在手牌"; if (status === "discard") return "已进弃牌"; return "未知状态"; }
+
+

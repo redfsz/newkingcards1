@@ -19,8 +19,8 @@ import {
   initialBuffLibrary,
   itemLibrary,
   levelPresets,
-  moveLibrary,
   resultLabels,
+  sequenceDamageByLength,
   weatherLibrary
 } from "./gameData.js";
 import {
@@ -33,6 +33,8 @@ import {
   getVisibleBossCards,
   playRound,
   resetBattle,
+  setCustomMoveLength,
+  setCustomMoveStep,
   setMaxHp,
   setRevealCount,
   setWeather,
@@ -201,7 +203,18 @@ export function App() {
 
         <section className="panel">
           <div className="panelTitle"><Sparkles size={18} /><h2>招式</h2></div>
-          <h3>玩家携带</h3><div className="moveList">{moveLibrary.map((move) => <ToggleRow key={move.id} active={game.selectedMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "player"))} />)}</div>
+          <h3>玩家自定义招式</h3>
+          <div className="customMoveList">
+            {game.customMoves.map((move) => (
+              <CustomMoveEditor
+                key={move.id}
+                move={move}
+                damage={sequenceDamageByLength[move.pattern.length] ?? 0}
+                onStep={(index, outcome) => setGame((state) => setCustomMoveStep(state, move.id, index, outcome))}
+                onLength={(length) => setGame((state) => setCustomMoveLength(state, move.id, length))}
+              />
+            ))}
+          </div>
           <h3>Boss 携带</h3><div className="moveList">{bossMoveLibrary.map((move) => <ToggleRow key={move.id} active={game.selectedBossMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "boss"))} />)}</div>
         </section>
 
@@ -256,6 +269,29 @@ function Pile({ title, cards, visible = false, revealedKeys = [], emptyText = "�
 function StatCard({ icon, label, value, danger = false, highlight = false, title = "" }) { return <div className={`statCard ${danger ? "danger" : ""} ${highlight ? "highlight" : ""}`} title={title}>{icon}<span>{label}</span><strong>{value}</strong></div>; }
 function InfoPill({ label, value }) { return <div className="infoPill"><span>{label}</span><strong>{value}</strong></div>; }
 function ToggleRow({ active, title, meta, note, onClick }) { return <button className={`toggleRow ${active ? "active" : ""}`} onClick={onClick} title={note}><span><strong>{title}</strong><small>{note}</small></span><em>{meta}</em></button>; }
+function CustomMoveEditor({ move, damage, onStep, onLength }) {
+  return (
+    <div className="customMoveRow">
+      <div className="customMoveHead">
+        <strong>{move.name}</strong>
+        <span>{move.pattern.map((entry) => resultLabels[entry]).join(" ")} / {damage} 伤害</span>
+      </div>
+      <div className="customMoveControls">
+        <label>
+          <span>长度</span>
+          <input type="number" min="1" max="6" value={move.pattern.length} onChange={(event) => onLength(event.target.value)} />
+        </label>
+        <div className="sequenceButtons">
+          {move.pattern.map((entry, index) => (
+            <button key={`${move.id}-${index}`} className={entry === "win" ? "win" : "loss"} onClick={() => onStep(index, entry === "win" ? "loss" : "win")}>
+              {resultLabels[entry]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 function DeckToggles({ title, side, cards, onToggle }) {
   const ownedIds = new Set(cards.map((card) => card.id));
   return <div><h3>{title}（{cards.length}/10）</h3><div className="libraryGrid">{cardLibrary.map((card) => { const disabled = side === "boss" && card.type === "一次性卡牌"; return <button key={card.id} className={ownedIds.has(card.id) ? "active" : ""} disabled={disabled} onClick={() => onToggle(card.id)} title={disabled ? "Boss 不使用一次性牌" : card.note}><strong>{card.name}</strong><span>Lv {card.level}</span></button>; })}</div></div>;

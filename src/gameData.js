@@ -55,6 +55,24 @@ export const moveLibrary = [
   { id: "comeback", name: "负负胜", pattern: ["loss", "loss", "win"], damage: 4, price: 25, note: "逆风反打" }
 ];
 
+
+export const sequenceDamageByLength = {
+  1: 1,
+  2: 3,
+  3: 5,
+  4: 7,
+  5: 15,
+  6: 30
+};
+
+export const defaultCustomMoves = [
+  { id: "custom_1", name: "招式 1", pattern: ["win"] },
+  { id: "custom_2", name: "招式 2", pattern: ["win", "win"] },
+  { id: "custom_3", name: "招式 3", pattern: ["loss", "win"] },
+  { id: "custom_4", name: "招式 4", pattern: ["loss", "loss", "win"] },
+  { id: "custom_5", name: "招式 5", pattern: ["win", "loss", "win"] },
+  { id: "custom_6", name: "招式 6", pattern: ["win", "win", "win", "win", "win", "win"] }
+];
 export const bossMoveLibrary = [
   { id: "boss_single", name: "压制", pattern: ["win"], damage: 1, note: "Boss 固有招式" },
   { id: "boss_double", name: "连压", pattern: ["win", "win"], damage: 3, note: "连续胜利造成爆发" },
@@ -110,3 +128,4 @@ export const levelPresets = [
   { id: "level_6", name: "第六关：暖风终局", bossPersona: "executioner", playerMaxHp: 26, bossMaxHp: 34, weather: "warm", revealCount: 3, initialBuffs: ["player_move_plus", "random_king"], playerDeck: ["king", "commoner", "minister", "guard", "queen", "civilization", "final_moment", "perfect_match", "regicide", "buff_one"], bossDeck: ["king", "commoner", "minister", "guard", "queen", "civilization", "final_moment", "perfect_match", "rebel", "beggar"], selectedMoves: ["single_win", "double_win", "win_win_loss", "counter"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "plus_half", "plus_one", "save"] },
   { id: "level_7", name: "第七关：王座决战", bossPersona: "king", playerMaxHp: 30, bossMaxHp: 42, weather: "clear", revealCount: 4, initialBuffs: ["chaotic_battlefield", "collapse_guard"], playerDeck: ["king", "commoner", "minister", "queen", "noble", "strike_blade", "forge_blade", "false_god", "regicide", "buff_one"], bossDeck: ["king", "commoner", "minister", "queen", "noble", "strike_blade", "forge_blade", "false_god", "civilization", "perfect_match"], selectedMoves: ["single_win", "double_win", "win_win_loss", "counter", "comeback"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "plus_one", "minus_half", "save"] }
 ];
+

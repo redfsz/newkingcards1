@@ -2,11 +2,12 @@
   bossMoveLibrary,
   bossPersonaLibrary,
   cardLibrary,
+  defaultCustomMoves,
   initialBuffLibrary,
   itemLibrary,
   levelPresets,
-  moveLibrary,
-  requiredDeckCards
+  requiredDeckCards,
+  sequenceDamageByLength
 } from "./gameData.js";
 
 const byId = new Map(cardLibrary.map((card) => [card.id, card]));
@@ -52,7 +53,7 @@ export function createStateFromConfig(config) {
     playerCollapseStacks: 0,
     bossCollapseStacks: 0,
     bossPressure: 0,
-    selectedMoves: normalized.selectedMoves,
+    customMoves: normalized.customMoves,
     selectedBossMoves: normalized.selectedBossMoves,
     ownedItems: normalized.ownedItems,
     initialBuffs: normalized.initialBuffs,
@@ -78,7 +79,7 @@ export function stateToLevelConfig(state) {
     initialBuffs: state.initialBuffs ?? [],
     playerDeck: collectDeckIds(state.playerHand, state.playerDiscard),
     bossDeck: collectDeckIds(state.bossHand, state.bossDiscard),
-    selectedMoves: state.selectedMoves,
+    customMoves: state.customMoves,
     selectedBossMoves: state.selectedBossMoves,
     ownedItems: state.ownedItems
   });
@@ -98,7 +99,7 @@ export function normalizeLevelConfig(config) {
     initialBuffs: sanitizeIds(source.initialBuffs, initialBuffLibrary, [], initialBuffLibrary.length, true),
     playerDeck: sanitizeDeck(source.playerDeck, "player"),
     bossDeck: sanitizeDeck(source.bossDeck, "boss"),
-    selectedMoves: sanitizeIds(source.selectedMoves, moveLibrary, fallback.selectedMoves, 6),
+    customMoves: sanitizeCustomMoves(source.customMoves, source.selectedMoves),
     selectedBossMoves: sanitizeIds(source.selectedBossMoves, bossMoveLibrary, fallback.selectedBossMoves, 6),
     ownedItems: sanitizeIds(source.ownedItems, itemLibrary, fallback.ownedItems, itemLibrary.length)
   };
@@ -142,11 +143,33 @@ export function toggleCardInDeck(state, side, cardId) {
 }
 
 export function toggleMove(state, moveId, side = "player") {
+  if (side === "player") return state;
   const key = side === "player" ? "selectedMoves" : "selectedBossMoves";
   const selected = state[key];
   if (selected.includes(moveId)) return { ...state, [key]: selected.filter((id) => id !== moveId) };
   if (selected.length >= 6) return addLog(state, "warn", "最多携带 6 个招式。");
   return { ...state, [key]: [...selected, moveId] };
+}
+
+export function setCustomMoveStep(state, moveId, index, outcome) {
+  const customMoves = sanitizeCustomMoves(state.customMoves).map((move) => {
+    if (move.id !== moveId) return move;
+    const pattern = [...move.pattern];
+    pattern[index] = outcome;
+    return { ...move, pattern: pattern.slice(0, 6) };
+  });
+  return { ...state, customMoves };
+}
+
+export function setCustomMoveLength(state, moveId, length) {
+  const customMoves = sanitizeCustomMoves(state.customMoves).map((move) => {
+    if (move.id !== moveId) return move;
+    const nextLength = clampNumber(length, 1, 6, move.pattern.length || 1);
+    const pattern = [...move.pattern];
+    while (pattern.length < nextLength) pattern.push("win");
+    return { ...move, pattern: pattern.slice(0, nextLength) };
+  });
+  return { ...state, customMoves };
 }
 
 export function toggleItem(state, itemId) {
@@ -261,6 +284,36 @@ function sanitizeIds(ids, library, fallback, limit, allowEmpty = false) {
   const clean = source.filter((id) => valid.has(id)).slice(0, limit);
   return clean.length > 0 || allowEmpty ? clean : fallback;
 }
+function sanitizeCustomMoves(moves, legacySelectedMoves = null, fallbackMoves = null) {
+  const legacyMap = {
+    single_win: ["win"],
+    double_win: ["win", "win"],
+    win_win_loss: ["win", "win", "loss"],
+    counter: ["loss", "win"],
+    comeback: ["loss", "loss", "win"]
+  };
+  let source = Array.isArray(moves) ? moves : fallbackMoves;
+  if (!Array.isArray(source) && Array.isArray(legacySelectedMoves)) {
+    source = legacySelectedMoves.map((id, index) => ({
+      id: defaultCustomMoves[index]?.id ?? `custom_${index + 1}`,
+      name: defaultCustomMoves[index]?.name ?? `招式 ${index + 1}`,
+      pattern: legacyMap[id] ?? ["win"]
+    }));
+  }
+  if (!Array.isArray(source)) source = defaultCustomMoves;
+  return Array.from({ length: 6 }, (_, index) => {
+    const fallback = defaultCustomMoves[index];
+    const move = source[index] ?? fallback;
+    const pattern = Array.isArray(move.pattern)
+      ? move.pattern.filter((entry) => entry === "win" || entry === "loss").slice(0, 6)
+      : fallback.pattern;
+    return {
+      id: fallback.id,
+      name: String(move.name || fallback.name),
+      pattern: pattern.length > 0 ? pattern : fallback.pattern
+    };
+  });
+}
 function collectDeckIds(hand, discard) { return [...hand, ...discard].map((card) => card.id); }
 function isOneTimeCard(card) { return card.type === "一次性卡牌"; }
 function clampNumber(value, min, max, fallback) { const n = Number(value); if (!Number.isFinite(n)) return fallback; return Math.max(min, Math.min(max, Math.round(n))); }
@@ -371,15 +424,15 @@ function scoreBossCard(state, card, phase, legal) {
 }
 function applyMoves(state, side, logs) {
   const isPlayer = side === "player";
-  const selected = isPlayer ? state.selectedMoves : state.selectedBossMoves;
-  const source = isPlayer ? moveLibrary : bossMoveLibrary;
+  const selected = isPlayer ? sanitizeCustomMoves(state.customMoves) : state.selectedBossMoves;
   const pattern = isPlayer ? state.playerPattern : state.bossPattern;
   let next = state;
-  for (const moveId of selected) {
-    const move = source.find((entry) => entry.id === moveId);
+  for (const selectedMove of selected) {
+    const move = isPlayer ? selectedMove : bossMoveLibrary.find((entry) => entry.id === selectedMove);
     if (!move || !endsWithPattern(pattern, move.pattern)) continue;
     const buffBonus = isPlayer && hasBuff(state, "player_move_plus") ? 1 : 0;
-    const damage = move.damage + buffBonus + (isPlayer ? state.bossCollapseStacks : state.playerCollapseStacks);
+    const baseDamage = isPlayer ? sequenceDamageByLength[move.pattern.length] ?? 0 : move.damage;
+    const damage = baseDamage + buffBonus + (isPlayer ? state.bossCollapseStacks : state.playerCollapseStacks);
     if (isPlayer) { next = { ...next, bossHp: Math.max(0, next.bossHp - damage) }; logs.push(`玩家触发招式【${move.name}】，Boss 受到 ${damage} 点伤害。`); }
     else { next = { ...next, playerHp: Math.max(0, next.playerHp - damage) }; logs.push(`Boss 触发招式【${move.name}】，玩家受到 ${damage} 点伤害。`); }
   }
@@ -431,7 +484,7 @@ function wouldBreakPlayerPattern(state) {
 function wouldExtendBossWinPattern(state, card) {
   return state.bossPattern.at(-1) === "win" || cardLikelyWins(state, card);
 }
-function trimPattern(pattern) { return pattern.slice(-4); }
+function trimPattern(pattern) { return pattern.slice(-6); }
 function pickChaoticPlayerCard(cards, round) {
   const index = Math.abs((round * 37 + cards.length * 11) % cards.length);
   return cards[index];

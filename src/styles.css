@@ -574,6 +574,85 @@ h3 {
   gap: 8px;
 }
 
+.customMoveList {
+  display: grid;
+  gap: 10px;
+}
+
+.customMoveRow {
+  background: #f8fafc;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.customMoveHead {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.customMoveHead span {
+  color: #1d4f73;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.customMoveControls {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 86px 1fr;
+}
+
+.customMoveControls label {
+  display: grid;
+  gap: 4px;
+}
+
+.customMoveControls label span {
+  color: #667587;
+  font-size: 12px;
+}
+
+.customMoveControls input {
+  border: 1px solid #cbd5df;
+  border-radius: 8px;
+  height: 34px;
+  padding: 0 8px;
+  width: 70px;
+}
+
+.sequenceButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sequenceButtons button {
+  border: 1px solid #cfd8e3;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  height: 34px;
+  min-width: 42px;
+}
+
+.sequenceButtons button.win {
+  background: #e9f5ee;
+  border-color: #7fbe96;
+  color: #287a49;
+}
+
+.sequenceButtons button.loss {
+  background: #fff0ed;
+  border-color: #d99b8d;
+  color: #9d3030;
+}
+
 .toggleRow {
   align-items: center;
   background: #f8fafc;

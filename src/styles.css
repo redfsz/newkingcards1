@@ -483,6 +483,70 @@ h3 {
   color: #5f6c7a;
 }
 
+
+.pileBoard {
+  border-top: 1px solid #edf1f5;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.pile {
+  background: #f8fafc;
+  border: 1px solid #e2e8ef;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.pile h3 {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 8px;
+}
+
+.pile h3 span {
+  background: #e7eef5;
+  border-radius: 999px;
+  color: #465466;
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+.pileCards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.pileCards em {
+  color: #8b98a7;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.pileCard {
+  background: #fff;
+  border: 1px solid #d4dee8;
+  border-radius: 6px;
+  color: #243242;
+  font-size: 12px;
+  padding: 5px 7px;
+}
+
+.pileCard.hidden {
+  background: #e7ebf0;
+  border-color: #d5dde6;
+  color: #7b8794;
+}
+
+.decisionText.hint {
+  color: #8a6a42;
+  font-size: 12px;
+}
 .battleInfo {
   display: grid;
   gap: 8px;
@@ -744,6 +808,7 @@ h3 {
   .statusBand,
   .configBand,
   .battleInfo,
+  .pileBoard,
   .segmented {
     grid-template-columns: 1fr;
   }
@@ -757,6 +822,7 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
 
 
 

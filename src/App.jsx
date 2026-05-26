@@ -55,8 +55,8 @@ export function App() {
   const playerPatternText = game.playerPattern.map((entry) => resultLabels[entry]).join(" ");
   const bossPatternText = game.bossPattern.map((entry) => resultLabels[entry]).join(" ");
   const bossPressure = game.bossPressure ?? 0;
-  const bossDecisionText = game.bossPersona?.pressureRules?.[Math.min(3, bossPressure)] ?? "按当前手牌选择出牌。";
-  const bossPressureTitle = `当前 Boss：${game.bossPersona?.name ?? "Boss"}（${game.bossPersona?.style ?? "默认"}）\n压力 ${bossPressure}/3\n本回合决策：${bossDecisionText}\n满压力：${game.bossPersona?.fullPressure ?? "打出当前最高等级牌，然后压力清零。"}`;
+  const bossTendencyText = game.bossPersona?.pressureRules?.[Math.min(3, bossPressure)] ?? "按当前性格选择出牌。";
+  const bossPressureTitle = `当前 Boss：${game.bossPersona?.name ?? "Boss"}（${game.bossPersona?.style ?? "默认"}）\n压力 ${bossPressure}/3\n行为倾向：${bossTendencyText}\n满压力：${game.bossPersona?.fullPressure ?? "打出当前最高等级牌，然后压力清零。"}`;
 
   function applyLevel(levelId) {
     const level = levelPresets.find((entry) => entry.id === levelId);
@@ -133,7 +133,7 @@ export function App() {
 
       <div className="workspace">
         <section className="panel bossIntentPanel">
-          <div className="panelTitle"><ShieldAlert size={18} /><h2>Boss 性格与压力</h2></div>
+          <div className="panelTitle"><ShieldAlert size={18} /><h2>Boss 性格倾向</h2></div>
           <div className="pressureBox" title={bossPressureTitle}>
             <div>
               <span>{game.bossPersona?.style}</span>
@@ -143,8 +143,9 @@ export function App() {
               {[0, 1, 2].map((dot) => <i key={dot} className={dot < bossPressure ? "active" : ""} />)}
             </div>
           </div>
-          <p className="decisionText"><strong>本回合决策：</strong>{bossDecisionText}</p>
-          <p className="decisionText muted"><strong>满压力：</strong>{game.bossPersona?.fullPressure}</p>
+          <p className="decisionText"><strong>当前倾向：</strong>{bossTendencyText}</p>
+          <p className="decisionText muted"><strong>满压力倾向：</strong>{game.bossPersona?.fullPressure}</p>
+          <p className="decisionText hint">这里显示的是性格倾向，不代表 Boss 本回合一定出哪张牌。</p>
         </section>
 
         <section className="panel battlePanel">
@@ -179,8 +180,13 @@ export function App() {
             <InfoPill label="玩家序列" value={playerPatternText || "无"} />
             <InfoPill label="Boss 序列" value={bossPatternText || "无"} />
           </div>
+          <div className="pileBoard">
+            <Pile title="我的手牌" cards={game.playerHand} visible />
+            <Pile title="我的弃牌堆" cards={game.playerDiscard} visible emptyText="暂无弃牌" />
+            <Pile title="Boss 手牌" cards={game.bossHand} revealedKeys={game.revealedBossCardKeys ?? []} emptyText="Boss 手牌已空" />
+            <Pile title="Boss 弃牌堆" cards={game.bossDiscard} visible emptyText="暂无弃牌" />
+          </div>
         </section>
-
         <section className="panel">
           <div className="panelTitle"><Sparkles size={18} /><h2>初始 Buff</h2></div>
           <div className="buffGrid">
@@ -225,6 +231,21 @@ export function App() {
   );
 }
 
+function Pile({ title, cards, visible = false, revealedKeys = [], emptyText = "空" }) {
+  const revealed = new Set(revealedKeys);
+  return (
+    <div className="pile">
+      <h3>{title} <span>{cards.length}</span></h3>
+      <div className="pileCards">
+        {cards.length === 0 && <em>{emptyText}</em>}
+        {cards.map((card) => {
+          const show = visible || revealed.has(card.key);
+          return <span key={card.key} className={show ? "pileCard" : "pileCard hidden"}>{show ? card.name : "牌背"}</span>;
+        })}
+      </div>
+    </div>
+  );
+}
 function StatCard({ icon, label, value, danger = false, highlight = false, title = "" }) { return <div className={`statCard ${danger ? "danger" : ""} ${highlight ? "highlight" : ""}`} title={title}>{icon}<span>{label}</span><strong>{value}</strong></div>; }
 function InfoPill({ label, value }) { return <div className="infoPill"><span>{label}</span><strong>{value}</strong></div>; }
 function ToggleRow({ active, title, meta, note, onClick }) { return <button className={`toggleRow ${active ? "active" : ""}`} onClick={onClick} title={note}><span><strong>{title}</strong><small>{note}</small></span><em>{meta}</em></button>; }
@@ -233,5 +254,7 @@ function DeckToggles({ title, side, cards, onToggle }) {
   return <div><h3>{title}（{cards.length}/10）</h3><div className="libraryGrid">{cardLibrary.map((card) => { const disabled = side === "boss" && card.type === "一次性卡牌"; return <button key={card.id} className={ownedIds.has(card.id) ? "active" : ""} disabled={disabled} onClick={() => onToggle(card.id)} title={disabled ? "Boss 不使用一次性牌" : card.note}><strong>{card.name}</strong><span>Lv {card.level}</span></button>; })}</div></div>;
 }
 function statusText(status) { if (status === "hand") return "还在手牌"; if (status === "discard") return "已进弃牌"; return "未知状态"; }
+
+
 
 

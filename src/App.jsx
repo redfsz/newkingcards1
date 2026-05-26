@@ -45,6 +45,7 @@ import {
 
 export function App() {
   const [game, setGame] = useState(() => createInitialState(levelPresets[0]));
+  const [logCollapsed, setLogCollapsed] = useState(false);
   const fileInputRef = useRef(null);
   const legalCards = useMemo(() => getLegalPlayerCards(game), [game]);
   const legalKeys = new Set(legalCards.map((card) => card.key));
@@ -225,7 +226,13 @@ export function App() {
           </div>
         </section>
 
-        <section className="panel logPanel"><div className="panelTitle"><History size={18} /><h2>战斗日志</h2></div><div className="logs">{game.logs.map((log) => <p key={log.id} className={`log ${log.tone}`}>{log.text}</p>)}</div></section>
+                <section className={`panel logPanel ${logCollapsed ? "collapsed" : ""}`}>
+          <div className="panelTitle logTitle">
+            <span><History size={18} /><h2>战斗日志</h2></span>
+            <button className="collapseButton" onClick={() => setLogCollapsed((value) => !value)}>{logCollapsed ? "展开" : "隐藏"}</button>
+          </div>
+          {!logCollapsed && <div className="logs">{game.logs.map((log) => <p key={log.id} className={`log ${log.tone}`}>{log.text}</p>)}</div>}
+        </section>
       </div>
     </main>
   );
@@ -254,6 +261,7 @@ function DeckToggles({ title, side, cards, onToggle }) {
   return <div><h3>{title}（{cards.length}/10）</h3><div className="libraryGrid">{cardLibrary.map((card) => { const disabled = side === "boss" && card.type === "一次性卡牌"; return <button key={card.id} className={ownedIds.has(card.id) ? "active" : ""} disabled={disabled} onClick={() => onToggle(card.id)} title={disabled ? "Boss 不使用一次性牌" : card.note}><strong>{card.name}</strong><span>Lv {card.level}</span></button>; })}</div></div>;
 }
 function statusText(status) { if (status === "hand") return "还在手牌"; if (status === "discard") return "已进弃牌"; return "未知状态"; }
+
 
 
 

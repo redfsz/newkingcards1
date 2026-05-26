@@ -740,6 +740,35 @@ h3 {
   font-size: 12px;
 }
 
+
+.logTitle {
+  justify-content: space-between;
+}
+
+.logTitle span {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.collapseButton {
+  background: #eef4f9;
+  border: 1px solid #cbd9e5;
+  border-radius: 8px;
+  color: #1d4f73;
+  cursor: pointer;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.logPanel.collapsed {
+  position: static;
+}
+
+.logPanel.collapsed .panelTitle {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
 .logs {
   display: grid;
   gap: 8px;
@@ -822,6 +851,7 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
 
 
 

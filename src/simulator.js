@@ -106,10 +106,13 @@ export function normalizeLevelConfig(config) {
 }
 
 export function createCards(ids, owner) {
-  return sanitizeDeck(ids, owner === "b" ? "boss" : "player").map((id) => ({
-    ...byId.get(id),
-    key: `${owner}-${nextInstance++}-${id}`
-  }));
+  return (Array.isArray(ids) ? ids : [])
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((card) => ({
+      ...card,
+      key: `${owner}-${nextInstance++}-${card.id}`
+    }));
 }
 
 export function toggleInitialBuff(state, buffId) {

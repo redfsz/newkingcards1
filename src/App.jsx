@@ -60,6 +60,7 @@ export function App() {
   const bossPressure = game.bossPressure ?? 0;
   const bossTendencyText = game.bossPersona?.pressureRules?.[Math.min(3, bossPressure)] ?? "按当前性格选择出牌。";
   const bossPressureTitle = `当前 Boss：${game.bossPersona?.name ?? "Boss"}（${game.bossPersona?.style ?? "默认"}）\n压力 ${bossPressure}/3\n行为倾向：${bossTendencyText}\n满压力：${game.bossPersona?.fullPressure ?? "打出当前最高等级牌，然后压力清零。"}`;
+  const battleTypeText = { npc: "NPC 战斗", duel: "主角切磋", boss: "Boss 战" }[game.battleType] ?? "战斗";
 
   function applyLevel(levelId) {
     const level = levelPresets.find((entry) => entry.id === levelId);
@@ -116,7 +117,7 @@ export function App() {
             {!levelPresets.some((level) => level.id === game.currentLevelId) && <option value={game.currentLevelId}>{game.currentLevelName}</option>}
           </select>
         </label>
-        <strong>{game.currentLevelName}</strong>
+        <strong>{battleTypeText}：{game.currentLevelName}</strong>
       </section>
 
       <section className="statusBand">
@@ -136,7 +137,7 @@ export function App() {
 
       <div className="workspace">
         <section className="panel bossIntentPanel">
-          <div className="panelTitle"><ShieldAlert size={18} /><h2>Boss 性格倾向</h2></div>
+          <div className="panelTitle"><ShieldAlert size={18} /><h2>对手规则</h2></div>
           <div className="pressureBox" title={bossPressureTitle}>
             <div>
               <span>{game.bossPersona?.style}</span>
@@ -149,6 +150,23 @@ export function App() {
           <p className="decisionText"><strong>当前倾向：</strong>{bossTendencyText}</p>
           <p className="decisionText muted"><strong>满压力倾向：</strong>{game.bossPersona?.fullPressure}</p>
           <p className="decisionText hint">这里显示的是性格倾向，不代表 Boss 本回合一定出哪张牌。</p>
+          {game.battleRule && (
+            <div className="ruleBox">
+              <strong>{game.battleRule.name}</strong>
+              <span>{game.battleRule.text}</span>
+            </div>
+          )}
+          {game.bossSkills?.length > 0 && (
+            <div className="skillTimeline">
+              {game.bossSkills.map((skill) => (
+                <div key={`${skill.round}-${skill.name}`} className={(game.usedBossSkillRounds ?? []).includes(skill.round) ? "used" : ""}>
+                  <em>第 {skill.round} 回合</em>
+                  <strong>{skill.name}</strong>
+                  <span>{skill.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="panel battlePanel">

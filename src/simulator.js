@@ -32,6 +32,19 @@ export function createStateFromConfig(config) {
   return {
     currentLevelId: normalized.id,
     currentLevelName: normalized.name,
+    floor: normalized.floor,
+    battleType: normalized.battleType,
+    battleRule: normalized.battleRule,
+    bossSkills: normalized.bossSkills,
+    usedBossSkillRounds: [],
+    bossDamageReduction: 0,
+    bossWinBonus: 0,
+    bossMoveDamageBonus: 0,
+    fourSymbolBonus: 0,
+    fourSymbolRitual: 0,
+    ignoreNextBossLossSequence: false,
+    sentinelCollapseShieldUsed: false,
+    playerTriggeredMoveLengths: [],
     bossPersona: persona,
     basePlayerMaxHp: normalized.playerMaxHp,
     baseBossMaxHp: normalized.bossMaxHp,
@@ -62,7 +75,7 @@ export function createStateFromConfig(config) {
     round: 1,
     winner: null,
     logs: [
-      { id: 0, tone: "info", text: `载入关卡：${normalized.name}。Boss：${persona.name}（${persona.style}）。初始 Buff：${buffNames}。` }
+      { id: 0, tone: "info", text: `载入战斗：${normalized.name}。对手：${persona.name}（${persona.style}）。初始 Buff：${buffNames}。${normalized.battleRule ? `规则：${normalized.battleRule.name}，${normalized.battleRule.text}` : ""}` }
     ]
   };
 }
@@ -71,6 +84,8 @@ export function stateToLevelConfig(state) {
   return normalizeLevelConfig({
     id: state.currentLevelId || "custom_level",
     name: state.currentLevelName || "自定义关卡",
+    floor: state.floor ?? 1,
+    battleType: state.battleType ?? "boss",
     playerMaxHp: state.basePlayerMaxHp ?? state.playerMaxHp,
     bossMaxHp: state.baseBossMaxHp ?? state.bossMaxHp,
     weather: state.weather,
@@ -81,6 +96,8 @@ export function stateToLevelConfig(state) {
     bossDeck: collectDeckIds(state.bossHand, state.bossDiscard),
     customMoves: state.customMoves,
     selectedBossMoves: state.selectedBossMoves,
+    battleRule: state.battleRule,
+    bossSkills: state.bossSkills,
     ownedItems: state.ownedItems
   });
 }
@@ -91,6 +108,8 @@ export function normalizeLevelConfig(config) {
   return {
     id: String(source.id || "custom_level"),
     name: String(source.name || "自定义关卡"),
+    floor: clampNumber(source.floor, 1, 7, fallback.floor ?? 1),
+    battleType: ["npc", "duel", "boss"].includes(source.battleType) ? source.battleType : "boss",
     playerMaxHp: clampNumber(source.playerMaxHp, 1, 99, fallback.playerMaxHp),
     bossMaxHp: clampNumber(source.bossMaxHp, 1, 99, fallback.bossMaxHp),
     weather: source.weather || "clear",
@@ -101,6 +120,8 @@ export function normalizeLevelConfig(config) {
     bossDeck: sanitizeDeck(source.bossDeck, "boss"),
     customMoves: sanitizeCustomMoves(source.customMoves, source.selectedMoves),
     selectedBossMoves: sanitizeIds(source.selectedBossMoves, bossMoveLibrary, fallback.selectedBossMoves, 6),
+    battleRule: sanitizeBattleRule(source.battleRule),
+    bossSkills: sanitizeBossSkills(source.bossSkills),
     ownedItems: sanitizeIds(source.ownedItems, itemLibrary, fallback.ownedItems, itemLibrary.length)
   };
 }
@@ -190,25 +211,29 @@ export function chooseItem(state, itemId) {
 
 export function playRound(state, playerCardKey) {
   if (state.winner) return state;
+  let prepared = applyRoundStartEffects(state);
   const legalCards = getLegalPlayerCards(state);
   const selectedPlayerCardKey = hasBuff(state, "chaotic_battlefield") && legalCards.length > 0
     ? pickChaoticPlayerCard(legalCards, state.round).key
     : playerCardKey;
-  const playerCard = state.playerHand.find((card) => card.key === selectedPlayerCardKey);
-  if (!playerCard) return state;
-  if (!legalCards.some((card) => card.key === playerCardKey)) return addLog(state, "warn", "不能连续两次出同一张牌，除非可出牌只剩一张。");
+  const playerCard = prepared.playerHand.find((card) => card.key === selectedPlayerCardKey);
+  if (!playerCard) return prepared;
+  if (!legalCards.some((card) => card.key === playerCardKey)) return addLog(prepared, "warn", "不能连续两次出同一张牌，除非可出牌只剩一张。");
 
-  const bossCard = chooseBossCard(state);
-  if (!bossCard) return handleCollapse(state, "boss", ["Boss 没有可出牌，进入崩溃状态。"]);
+  const bossCard = chooseBossCard(prepared);
+  if (!bossCard) return handleCollapse(prepared, "boss", ["Boss 没有可出牌，进入崩溃状态。"]);
 
-  let next = { ...state, playerHand: state.playerHand.filter((card) => card.key !== playerCard.key), bossHand: state.bossHand.filter((card) => card.key !== bossCard.key), activeItemId: "" };
-  const item = itemById.get(state.activeItemId);
-  const result = compareCards(playerCard, bossCard, state.weather, item, {
-    playerHandBeforePlay: state.playerHand,
-    bossHandBeforePlay: state.bossHand,
-    activeBuffs: state.initialBuffs ?? []
+  let next = { ...prepared, playerHand: prepared.playerHand.filter((card) => card.key !== playerCard.key), bossHand: prepared.bossHand.filter((card) => card.key !== bossCard.key), activeItemId: "" };
+  const item = itemById.get(prepared.activeItemId);
+  const result = compareCards(playerCard, bossCard, prepared.weather, item, {
+    playerHandBeforePlay: prepared.playerHand,
+    bossHandBeforePlay: prepared.bossHand,
+    activeBuffs: prepared.initialBuffs ?? [],
+    bossFourSymbolBonus: prepared.fourSymbolBonus
   });
-  const logs = [formatRoundLog(state.round, playerCard, bossCard, result, item)];
+  const logs = [];
+  if (prepared.pendingLogs?.length) logs.push(...prepared.pendingLogs);
+  logs.push(formatRoundLog(prepared.round, playerCard, bossCard, result, item));
   if (selectedPlayerCardKey !== playerCardKey) logs.push(`混乱战场生效：本回合随机改为打出【${playerCard.name}】。`);
 
   if (result.player === "win") {
@@ -227,11 +252,18 @@ export function playRound(state, playerCardKey) {
 
   next.playerLastCardKey = playerCard.key;
   next.bossLastCardKey = bossCard.key;
-  next.playerPattern = trimPattern([...next.playerPattern, result.player]);
+  const playerResultForPattern = next.ignoreNextBossLossSequence && result.boss === "loss" ? null : result.player;
+  if (next.ignoreNextBossLossSequence && result.boss === "loss") {
+    next.ignoreNextBossLossSequence = false;
+    logs.push("伪神降桌生效：Boss 本次失败不增加玩家胜负序列。");
+  }
+  next.playerPattern = trimPattern(playerResultForPattern ? [...next.playerPattern, playerResultForPattern] : next.playerPattern);
   next.bossPattern = trimPattern([...next.bossPattern, result.boss]);
-  next.bossPressure = nextBossPressure(state, result.boss, logs);
+  next = applyRuleAfterResult(next, result, bossCard, logs);
+  next.bossPressure = nextBossPressure(next, result.boss, logs);
   next = applyMoves(next, "player", logs);
   next = applyMoves(next, "boss", logs);
+  next.bossDamageReduction = 0;
 
   if (next.bossHp <= 0) { next.winner = "player"; logs.push("Boss 生命归零，玩家获胜。"); }
   else if (next.playerHp <= 0) { next.winner = "boss"; logs.push("玩家生命归零，Boss 获胜。"); }
@@ -287,6 +319,24 @@ function sanitizeIds(ids, library, fallback, limit, allowEmpty = false) {
   const clean = source.filter((id) => valid.has(id)).slice(0, limit);
   return clean.length > 0 || allowEmpty ? clean : fallback;
 }
+function sanitizeBattleRule(rule) {
+  if (!rule || typeof rule !== "object") return null;
+  return {
+    id: String(rule.id || "custom_rule"),
+    name: String(rule.name || "特殊规则"),
+    text: String(rule.text || "")
+  };
+}
+function sanitizeBossSkills(skills) {
+  if (!Array.isArray(skills)) return [];
+  return skills.slice(0, 3).map((skill, index) => ({
+    round: clampNumber(skill.round, 1, 99, index + 2),
+    name: String(skill.name || `Boss 技能 ${index + 1}`),
+    effect: String(skill.effect || "none"),
+    value: Number.isFinite(Number(skill.value)) ? Number(skill.value) : 1,
+    text: String(skill.text || "")
+  }));
+}
 function sanitizeCustomMoves(moves, legacySelectedMoves = null, fallbackMoves = null) {
   const legacyMap = {
     single_win: ["win"],
@@ -334,7 +384,7 @@ function compareCards(playerCard, bossCard, weather, item, context = {}) {
   const playerEffectiveId = effectiveCardId(playerCard, context.playerHandBeforePlay);
   const bossEffectiveId = effectiveCardId(bossCard, context.bossHandBeforePlay);
   const playerLevel = adjustedLevel(playerCard, weather, item, "player", context.playerHandBeforePlay, context.activeBuffs);
-  const bossLevel = adjustedLevel(bossCard, weather, item, "boss", context.bossHandBeforePlay);
+  const bossLevel = adjustedLevel(bossCard, weather, item, "boss", context.bossHandBeforePlay) + (bossCard.id.startsWith("four_") ? context.bossFourSymbolBonus ?? 0 : 0);
   if (playerCard.id === "assassin" || bossCard.id === "assassin") return { player: "draw", boss: "draw", playerLevel, bossLevel, reason: "刺客强制双方失败" };
   if (playerEffectiveId === "commoner" && bossEffectiveId === "king") return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "平民克制国王" };
   if (bossEffectiveId === "commoner" && playerEffectiveId === "king") return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "平民克制国王" };
@@ -435,17 +485,31 @@ function applyMoves(state, side, logs) {
     if (!move || !endsWithPattern(pattern, move.pattern)) continue;
     const buffBonus = isPlayer && hasBuff(state, "player_move_plus") ? 1 : 0;
     const baseDamage = isPlayer ? sequenceDamageByLength[move.pattern.length] ?? 0 : move.damage;
-    const damage = baseDamage + buffBonus + (isPlayer ? state.bossCollapseStacks : state.playerCollapseStacks);
-    if (isPlayer) { next = { ...next, bossHp: Math.max(0, next.bossHp - damage) }; logs.push(`玩家触发招式【${move.name}】，Boss 受到 ${damage} 点伤害。`); }
-    else { next = { ...next, playerHp: Math.max(0, next.playerHp - damage) }; logs.push(`Boss 触发招式【${move.name}】，玩家受到 ${damage} 点伤害。`); }
+    let damage = baseDamage + buffBonus + (isPlayer ? state.bossCollapseStacks : state.playerCollapseStacks);
+    if (isPlayer) {
+      damage = applyPlayerMoveRuleDamage(next, move, damage);
+      damage = Math.max(1, damage - (next.bossDamageReduction ?? 0));
+      next = { ...next, bossHp: Math.max(0, next.bossHp - damage), playerTriggeredMoveLengths: [...(next.playerTriggeredMoveLengths ?? []), move.pattern.length] };
+      logs.push(`玩家触发招式【${move.name}】，Boss 受到 ${damage} 点伤害。`);
+    } else {
+      damage += next.bossMoveDamageBonus ?? 0;
+      next = { ...next, playerHp: Math.max(0, next.playerHp - damage), bossMoveDamageBonus: 0 };
+      logs.push(`Boss 触发招式【${move.name}】，玩家受到 ${damage} 点伤害。`);
+    }
   }
   return next;
+}
+function applyPlayerMoveRuleDamage(state, move, damage) {
+  if (state.battleRule?.id !== "king_repeat_length_penalty") return damage;
+  const lengths = state.playerTriggeredMoveLengths ?? [];
+  return lengths.includes(move.pattern.length) ? Math.max(1, damage - 1) : damage;
 }
 function handleCollapse(state, side, logs) {
   const isPlayer = side === "player";
   const targetName = isPlayer ? "玩家" : "Boss";
   const maxHp = isPlayer ? state.playerMaxHp : state.bossMaxHp;
   let damage = state.weather === "warm" ? maxHp : Math.ceil(maxHp / 2);
+  if (isPlayer && state.battleRule?.id === "execution_player_collapse_plus") damage += 3;
   if (isPlayer && hasBuff(state, "collapse_guard")) damage = Math.max(1, damage - 3);
   let next = { ...state };
   if (isPlayer) {
@@ -455,6 +519,12 @@ function handleCollapse(state, side, logs) {
     next.playerCollapseStacks += 1; next.playerHand = shuffleLike([...next.playerDiscard]); next.playerDiscard = []; next.playerLastCardKey = null;
     logs.push("玩家未被击败，重洗弃牌继续战斗，并获得 1 层崩溃负面状态。");
   } else {
+    if (state.battleRule?.id === "sentinel_first_collapse_shield" && !state.sentinelCollapseShieldUsed) {
+      next.sentinelCollapseShieldUsed = true;
+      next.bossCollapseStacks += 1; next.bossHand = shuffleLike([...next.bossDiscard]); next.bossDiscard = []; next.bossLastCardKey = null; next = syncRevealedBossCards(next);
+      logs.push("城墙防线生效：Boss 第一次崩溃不受终极招式伤害，只重洗弃牌并获得 1 层崩溃负面状态。");
+      return next;
+    }
     next.bossHp = Math.max(0, next.bossHp - damage);
     logs.push(`${targetName}牌组被打空，进入崩溃状态，受到终极招式 ${damage} 点伤害。`);
     if (next.bossHp <= 0) { next.winner = "player"; logs.push("Boss 在崩溃伤害中倒下，玩家获胜。"); return next; }
@@ -462,6 +532,76 @@ function handleCollapse(state, side, logs) {
     logs.push("Boss 未被击败，重洗弃牌继续战斗，并获得 1 层崩溃负面状态。");
   }
   return next;
+}
+function applyRoundStartEffects(state) {
+  const logs = [];
+  let next = { ...state, pendingLogs: [] };
+  if (next.battleRule?.id === "ice_hide_every_3" && next.round > 1 && next.round % 3 === 0) {
+    next = hideRevealedBossCards(next, 1);
+    logs.push("冰雾棋盘生效：隐藏 1 张已透视 Boss 牌。");
+  }
+  for (const skill of next.bossSkills ?? []) {
+    if (skill.round !== next.round || (next.usedBossSkillRounds ?? []).includes(skill.round)) continue;
+    next = applyBossSkill(next, skill, logs);
+    next.usedBossSkillRounds = [...(next.usedBossSkillRounds ?? []), skill.round];
+  }
+  return { ...next, pendingLogs: logs };
+}
+function applyBossSkill(state, skill, logs) {
+  let next = { ...state };
+  logs.push(`Boss 技能【${skill.name}】发动：${skill.text}`);
+  if (skill.effect === "pressureDown") next.bossPressure = Math.max(0, (next.bossPressure ?? 0) - skill.value);
+  else if (skill.effect === "pressureUp") next.bossPressure = Math.min(3, (next.bossPressure ?? 0) + skill.value);
+  else if (skill.effect === "pressureSet") next.bossPressure = clampNumber(skill.value, 0, 3, 3);
+  else if (skill.effect === "bossDamageReduction") next.bossDamageReduction = skill.value;
+  else if (skill.effect === "bossWinBonus") next.bossWinBonus = (next.bossWinBonus ?? 0) + skill.value;
+  else if (skill.effect === "bossMoveDamageBonus") next.bossMoveDamageBonus = (next.bossMoveDamageBonus ?? 0) + skill.value;
+  else if (skill.effect === "fourSymbolBonus") next.fourSymbolBonus = (next.fourSymbolBonus ?? 0) + skill.value;
+  else if (skill.effect === "hideRevealed") next = hideRevealedBossCards(next, skill.value);
+  else if (skill.effect === "clearPlayerPattern") next.playerPattern = next.playerPattern.slice(0, Math.max(0, next.playerPattern.length - skill.value));
+  else if (skill.effect === "recoverFourSymbol") next = recoverBossCard(next, (card) => card.id.startsWith("four_"));
+  else if (skill.effect === "ignoreNextBossLossSequence") next.ignoreNextBossLossSequence = true;
+  else if (skill.effect === "removePlayerDiscard") next = removePlayerDiscard(next);
+  else if (skill.effect === "reduceReveal") next = syncRevealedBossCards({ ...next, revealCount: Math.max(0, next.revealCount - skill.value), baseRevealCount: Math.max(0, (next.baseRevealCount ?? next.revealCount) - skill.value) });
+  else if (skill.effect === "clearBothPatterns") next = { ...next, playerPattern: [], bossPattern: [] };
+  else if (skill.effect === "finalCoronation") next = { ...next, bossPressure: 3, bossMoveDamageBonus: (next.bossMoveDamageBonus ?? 0) + skill.value };
+  return next;
+}
+function applyRuleAfterResult(state, result, bossCard, logs) {
+  let next = state;
+  if (next.battleRule?.id === "gambler_draw_pressure" && result.player === "draw") {
+    next = { ...next, bossPressure: Math.min(3, (next.bossPressure ?? 0) + 1) };
+    logs.push("赌神牌桌生效：双方失败，Boss 压力 +1。");
+  }
+  if (next.battleRule?.id === "four_symbols_ritual" && result.boss === "win" && bossCard.id.startsWith("four_")) {
+    const ritual = (next.fourSymbolRitual ?? 0) + 1;
+    if (ritual >= 4) {
+      next = { ...next, fourSymbolRitual: 0, playerHp: Math.max(0, next.playerHp - 12) };
+      logs.push("四象阵爆发：仪式达到 4 层，玩家受到 12 点伤害。");
+    } else {
+      next = { ...next, fourSymbolRitual: ritual };
+      logs.push(`四象阵生效：Boss 获得 ${ritual}/4 层仪式。`);
+    }
+  }
+  if (result.boss === "win" && (next.bossWinBonus ?? 0) > 0) {
+    next = { ...next, playerHp: Math.max(0, next.playerHp - next.bossWinBonus), bossWinBonus: 0 };
+    logs.push(`Boss 胜利追加伤害生效：玩家额外受到 ${state.bossWinBonus} 点伤害。`);
+  }
+  if (next.fourSymbolBonus && bossCard.id.startsWith("four_")) next = { ...next, fourSymbolBonus: 0 };
+  return next;
+}
+function hideRevealedBossCards(state, count) {
+  const removeCount = Math.max(0, Math.round(count));
+  return { ...state, revealedBossCardKeys: (state.revealedBossCardKeys ?? []).slice(0, Math.max(0, (state.revealedBossCardKeys ?? []).length - removeCount)) };
+}
+function recoverBossCard(state, predicate) {
+  const card = state.bossDiscard.find(predicate);
+  if (!card) return state;
+  return syncRevealedBossCards({ ...state, bossDiscard: state.bossDiscard.filter((entry) => entry.key !== card.key), bossHand: [...state.bossHand, card] });
+}
+function removePlayerDiscard(state) {
+  if (state.playerDiscard.length === 0) return state;
+  return { ...state, playerDiscard: state.playerDiscard.slice(1) };
 }
 function nextBossPressure(state, bossResult, logs) {
   const current = state.bossPressure ?? 0;

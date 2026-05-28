@@ -547,6 +547,54 @@ h3 {
   color: #8a6a42;
   font-size: 12px;
 }
+
+.ruleBox {
+  background: #fff7e8;
+  border: 1px solid #e2bd7a;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 10px;
+}
+
+.ruleBox span {
+  color: #5f4b30;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.skillTimeline {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.skillTimeline div {
+  background: #f8fafc;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+}
+
+.skillTimeline div.used {
+  background: #eef7ff;
+  border-color: #85b9df;
+}
+
+.skillTimeline em {
+  color: #9b5d16;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.skillTimeline span {
+  color: #667587;
+  font-size: 12px;
+}
 .battleInfo {
   display: grid;
   gap: 8px;

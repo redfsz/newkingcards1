@@ -44,6 +44,54 @@ button {
   display: none;
 }
 
+.modalBackdrop {
+  align-items: center;
+  background: rgba(17, 27, 39, 0.48);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 20;
+}
+
+.rulesModal {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(17, 27, 39, 0.28);
+  max-height: min(720px, calc(100vh - 40px));
+  max-width: 760px;
+  overflow: hidden;
+  width: min(760px, 100%);
+}
+
+.modalHeader {
+  align-items: center;
+  border-bottom: 1px solid #edf1f5;
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.rulesContent {
+  display: grid;
+  gap: 8px;
+  max-height: calc(100vh - 130px);
+  overflow: auto;
+  padding: 16px;
+}
+
+.rulesContent h3 {
+  color: #1d4f73;
+  margin: 8px 0 0;
+}
+
+.rulesContent p {
+  color: #394555;
+  line-height: 1.55;
+  margin: 0;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   color: #637083;
@@ -147,6 +195,15 @@ h3 {
   margin: 0 auto 16px;
   max-width: 1440px;
   padding: 12px;
+}
+
+.configBand.compact {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .configBand label {
@@ -285,11 +342,11 @@ h3 {
   gap: 14px;
   grid-template-areas:
     "battle log"
-    "battle log"
     "intent log"
-    "buff moves"
-    "items deck";
-  grid-template-columns: minmax(0, 1.35fr) minmax(380px, 0.85fr);
+    "settings settings"
+    "moves items"
+    "buff deck";
+  grid-template-columns: minmax(0, 1.25fr) minmax(380px, 0.75fr);
   margin: 0 auto;
   max-width: 1440px;
 }
@@ -325,15 +382,23 @@ h3 {
 }
 
 .workspace > .panel:nth-of-type(3) {
-  grid-area: buff;
+  grid-area: settings;
 }
 
 .workspace > .panel:nth-of-type(4) {
-  grid-area: moves;
+  grid-area: buff;
 }
 
 .workspace > .panel:nth-of-type(5) {
+  grid-area: moves;
+}
+
+.workspace > .panel:nth-of-type(6) {
   grid-area: items;
+}
+
+.settingsPanel {
+  grid-area: settings;
 }
 
 .panelTitle {
@@ -351,7 +416,7 @@ h3 {
 .duelGrid {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.75fr);
+  grid-template-columns: minmax(0, 1fr) 300px;
 }
 
 .cardGrid {
@@ -369,8 +434,8 @@ h3 {
   cursor: pointer;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  min-height: 162px;
-  padding: 12px;
+  min-height: 132px;
+  padding: 10px;
   text-align: left;
 }
 
@@ -388,7 +453,7 @@ h3 {
 
 .playCard strong {
   align-self: center;
-  font-size: 20px;
+  font-size: 18px;
   text-align: center;
 }
 
@@ -899,8 +964,8 @@ h3 {
 .logs {
   display: grid;
   gap: 8px;
-  max-height: min(720px, calc(100vh - 220px));
-  min-height: 420px;
+  max-height: min(640px, calc(100vh - 220px));
+  min-height: 300px;
   overflow: auto;
   padding-right: 4px;
 }
@@ -924,6 +989,7 @@ h3 {
       "battle"
       "log"
       "intent"
+      "settings"
       "buff"
       "moves"
       "items"
@@ -933,6 +999,10 @@ h3 {
 
   .duelGrid,
   .deckColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .configBand.compact {
     grid-template-columns: 1fr;
   }
 

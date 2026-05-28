@@ -275,12 +275,17 @@ export function playRound(state, playerCardKey) {
 }
 
 export function setWeather(state, weather) { return addLog({ ...state, weather }, "info", `天气切换为：${weatherName(weather)}。`); }
-export function setRevealCount(state, revealCount) { return createStateFromConfig({ ...stateToLevelConfig(state), revealCount: clampNumber(revealCount, 0, 10, 0) }); }
+export function setRevealCount(state, revealCount) {
+  return syncRevealedBossCards({ ...state, baseRevealCount: clampNumber(revealCount, 0, 10, 0), revealCount: clampNumber(revealCount, 0, 10, 0) });
+}
 export function setMaxHp(state, side, value) {
-  const config = stateToLevelConfig(state);
-  if (side === "player") config.playerMaxHp = clampNumber(value, 1, 99, 1);
-  else config.bossMaxHp = clampNumber(value, 1, 99, 1);
-  return createStateFromConfig(config);
+  const nextMax = clampNumber(value, 1, 99, 1);
+  if (side === "player") {
+    const delta = nextMax - state.playerMaxHp;
+    return { ...state, basePlayerMaxHp: nextMax, playerMaxHp: nextMax, playerHp: Math.max(1, Math.min(nextMax, state.playerHp + delta)) };
+  }
+  const delta = nextMax - state.bossMaxHp;
+  return { ...state, baseBossMaxHp: nextMax, bossMaxHp: nextMax, bossHp: Math.max(1, Math.min(nextMax, state.bossHp + delta)) };
 }
 export function resetBattle(state) { return createStateFromConfig(stateToLevelConfig(state)); }
 export function getLegalPlayerCards(state) { return state.playerHand.length <= 1 ? state.playerHand : state.playerHand.filter((card) => card.key !== state.playerLastCardKey); }

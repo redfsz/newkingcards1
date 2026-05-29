@@ -111,6 +111,20 @@ export const itemLibrary = [
   { id: "save", name: "续命牌", price: 120, note: "本回合自己输掉的牌不进弃牌堆" }
 ];
 
+export const wagerLibrary = [
+  { id: "fast_win", name: "速战速决", text: "战斗在 6 回合内结束。", settle: "end" },
+  { id: "long_fight", name: "拉锯战", text: "战斗至少进入第 10 回合。", settle: "instant" },
+  { id: "player_round_3_win", name: "第三回合取胜", text: "第 3 回合玩家赢下本回合。", settle: "timed" },
+  { id: "boss_round_3_win", name: "第三回合失手", text: "第 3 回合 Boss 赢下本回合。", settle: "timed" },
+  { id: "player_big_move", name: "一式重创", text: "玩家单回合招式总伤害达到 5 点或以上。", settle: "instant" },
+  { id: "boss_big_move", name: "对手爆发", text: "Boss 单回合招式总伤害达到 5 点或以上。", settle: "instant" },
+  { id: "boss_first_collapse", name: "先破敌阵", text: "Boss 比玩家更早进入崩溃。", settle: "instant" },
+  { id: "no_player_ability", name: "禁用能力", text: "本局玩家不会使用能力卡。", settle: "end" },
+  { id: "no_player_item", name: "禁用道具", text: "本局玩家不会使用道具卡。", settle: "end" },
+  { id: "king_not_discarded", name: "护住国王", text: "本局玩家的国王不会进入弃牌堆。", settle: "end" },
+  { id: "commoner_not_discarded", name: "护住平民", text: "本局玩家的平民不会进入弃牌堆。", settle: "end" }
+];
+
 export const initialBuffLibrary = [
   { id: "rich_second_gen", name: "富二代", side: "玩家", note: "金币增加 50%。模拟器中作为经济 Buff 展示，不改变战斗结算" },
   { id: "unlimited_supply", name: "无限供应", side: "玩家", note: "商店卡牌不会售罄。模拟器中作为经济 Buff 展示，不改变战斗结算" },
@@ -162,7 +176,7 @@ export const levelPresets = [
 
   { id: "floor_5_npc", floor: 5, battleType: "npc", name: "第五层：赌桌客", bossPersona: "gambler", playerMaxHp: 24, bossMaxHp: 20, weather: "clear", revealCount: 3, initialBuffs: [], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "queen", "assassin", "fate"], selectedBossMoves: ["boss_single", "boss_bait"], ownedItems: ["peek", "plus_one", "minus_half", "save"] },
   { id: "floor_5_duel", floor: 5, battleType: "duel", name: "第五层：风险切磋", bossPersona: "gambler", playerMaxHp: 24, bossMaxHp: 26, weather: "clear", revealCount: 3, initialBuffs: ["random_commoner"], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "queen", "noble", "false_god", "fate", "shadow"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "plus_one", "minus_half", "save"] },
-  { id: "floor_5_boss", floor: 5, battleType: "boss", name: "第五层 Boss：伪神赌徒", bossPersona: "gambler", playerMaxHp: 24, bossMaxHp: 33, weather: "clear", revealCount: 3, initialBuffs: ["random_commoner"], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "queen", "noble", "false_god", "assassin", "fate", "shadow", "thief"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait", "boss_grind", "boss_comeback", "boss_gamble_swing"], battleRule: { id: "gambler_draw_pressure", name: "赌神牌桌", text: "双方失败时，Boss 压力 +1。伪神赌徒会用刺客、命运、伪神制造双方失败和高波动回合。" }, bossSkills: [{ round: 2, name: "下注", effect: "bossMoveDamageBonus", value: 2, text: "Boss 下一次招式伤害 +2。" }, { round: 5, name: "强行加注", effect: "bossMoveDamageBonus", value: 3, text: "Boss 下一次招式伤害 +3。" }, { round: 8, name: "伪神降桌", effect: "ignoreNextBossLossSequence", value: 1, text: "Boss 下一次失败不增加玩家胜负序列。" }], ownedItems: ["peek", "plus_one", "minus_half", "save"] },
+  { id: "floor_5_boss", floor: 5, battleType: "boss", name: "第五层 Boss：伪神赌徒", bossPersona: "gambler", playerMaxHp: 24, bossMaxHp: 33, weather: "clear", revealCount: 3, initialBuffs: ["random_commoner"], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "queen", "noble", "false_god", "assassin", "fate", "shadow", "thief"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait", "boss_grind", "boss_comeback", "boss_gamble_swing"], battleRule: { id: "gambler_draw_pressure", name: "赌神牌桌", text: "双方失败时，Boss 压力 +1。伪神赌徒会用刺客、命运、伪神制造双方失败和高波动回合。" }, bossSkills: [{ round: 2, name: "开局压注", effect: "bossMoveDamageBonus", value: 2, text: "Boss 下一次招式伤害 +2。" }, { round: 5, name: "强行加注", effect: "bossMoveDamageBonus", value: 3, text: "Boss 下一次招式伤害 +3。" }, { round: 8, name: "伪神降桌", effect: "ignoreNextBossLossSequence", value: 1, text: "Boss 下一次失败不增加玩家胜负序列。" }], ownedItems: ["peek", "plus_one", "minus_half", "save"] },
 
   { id: "floor_6_npc", floor: 6, battleType: "npc", name: "第六层：暖风信徒", bossPersona: "executioner", playerMaxHp: 26, bossMaxHp: 22, weather: "warm", revealCount: 3, initialBuffs: [], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "guard", "queen", "strike_blade", "rebel"], selectedBossMoves: ["boss_single", "boss_double"], ownedItems: ["peek", "plus_half", "plus_one", "save"] },
   { id: "floor_6_duel", floor: 6, battleType: "duel", name: "第六层：极限切磋", bossPersona: "executioner", playerMaxHp: 26, bossMaxHp: 30, weather: "warm", revealCount: 3, initialBuffs: ["player_move_plus"], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "guard", "noble", "queen", "strike_blade", "final_moment", "rebel"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "plus_half", "plus_one", "save"] },

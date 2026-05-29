@@ -24,11 +24,13 @@ import {
   playerUltimateLibrary,
   resultLabels,
   sequenceDamageByLength,
+  wagerLibrary,
   weatherLibrary
 } from "./gameData.js";
 import {
   canSeeBossPlannedCard,
   chooseItem,
+  chooseWager,
   createInitialState,
   createStateFromConfig,
   getLegalPlayerCards,
@@ -67,6 +69,7 @@ export function App() {
   const bossPressureTitle = `当前 Boss：${game.bossPersona?.name ?? "Boss"}（${game.bossPersona?.style ?? "默认"}）\n压力 ${bossPressure}/3\n压力越高，Boss 越容易进入激进状态。`;
   const battleTypeText = { npc: "NPC 战斗", duel: "主角切磋", boss: "Boss 战" }[game.battleType] ?? "战斗";
   const activeAbilities = getActiveAbilities(game);
+  const selectedWager = wagerLibrary.find((wager) => wager.id === game.selectedWagerId);
 
   function applyLevel(levelId) {
     const level = levelPresets.find((entry) => entry.id === levelId);
@@ -137,6 +140,27 @@ export function App() {
       </section>
 
       {game.winner && <section className={`resultBanner ${game.winner === "player" ? "win" : "loss"}`}>{game.winner === "player" ? "玩家胜利：Boss 已被击败" : "战斗失败：玩家已经倒下"}</section>}
+      <section className="wagerBand">
+        <div>
+          <strong>额外赌局</strong>
+          <span>{selectedWager ? `已选择：${selectedWager.name}` : "战斗开始前可三选一挑战，也可以不选。"}</span>
+        </div>
+        <div className="wagerChoices">
+          {(game.wagerChoices ?? []).map((wagerId) => {
+            const wager = wagerLibrary.find((entry) => entry.id === wagerId);
+            if (!wager) return null;
+            const selected = game.selectedWagerId === wager.id;
+            const resolved = (game.resolvedWagerIds ?? []).includes(wager.id);
+            return (
+              <button key={wager.id} className={selected ? "selected" : ""} disabled={game.round > 1 || Boolean(game.selectedWagerId) || Boolean(game.winner)} onClick={() => setGame((state) => chooseWager(state, wager.id))}>
+                <strong>{wager.name}</strong>
+                <span>{wager.text}</span>
+                <em>{resolved ? "已结算" : selected ? "进行中" : "选择挑战"}</em>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="workspace">
         <section className="panel bossIntentPanel">
@@ -334,6 +358,8 @@ function RulesModal({ onClose }) {
           <p>只有 Boss 战有地形规则。比如巡逻队长第一次崩溃免伤、雪花谋士隐藏透视、四象门主积累仪式、伪神赌徒让双方失败也增加压力、暖风裁决者提高玩家崩溃伤害、王座之影削弱重复同长度招式。</p>
           <h3>道具和天气</h3>
           <p>道具牌是给玩家用的一次性工具，比如预见牌、后悔牌、加等级、减 Boss 等级、续命牌。道具牌在出牌前准备使用，不占用出牌机会，使用后数量 -1，也不会进入手牌或弃牌堆。Boss 不携带道具牌。</p>
+          <h3>额外赌局</h3>
+          <p>每场战斗开始前会出现 3 个额外赌局。玩家可以选择 1 个挑战，也可以不选。额外赌局不涉及金币，只用于验证本局能否完成指定条件；条件达成时成功，战斗结束仍未达成则失败。</p>
           <h3>能力牌</h3>
           <p>能力牌可以多次打出，具体效果按每次打出的规则结算。比如天作之合每打出一次都会切换等级排序：第一次变成低等级获胜，第二次会恢复为高等级获胜。</p>
           <h3>上手建议</h3>

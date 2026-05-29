@@ -144,9 +144,67 @@ h3 {
 .statusBand {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin: 0 auto 16px;
   max-width: 1440px;
+}
+
+.wagerBand {
+  background: #fff;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  margin: 0 auto 16px;
+  max-width: 1440px;
+  padding: 12px;
+}
+
+.wagerBand > div:first-child {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.wagerBand span {
+  color: #667587;
+  font-size: 13px;
+}
+
+.wagerChoices {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wagerChoices button {
+  background: #f8fafc;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  min-height: 92px;
+  padding: 10px;
+  text-align: left;
+}
+
+.wagerChoices button.selected {
+  background: #fff7e8;
+  border-color: #d8a84f;
+}
+
+.wagerChoices button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.wagerChoices em {
+  color: #9b5d16;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .levelBand {
@@ -1088,7 +1146,8 @@ h3 {
   }
 
   .duelGrid,
-  .deckColumns {
+  .deckColumns,
+  .wagerChoices {
     grid-template-columns: 1fr;
   }
 
@@ -1125,7 +1184,8 @@ h3 {
   .configBand,
   .battleInfo,
   .pileBoard,
-  .segmented {
+  .segmented,
+  .wagerChoices {
     grid-template-columns: 1fr;
   }
 

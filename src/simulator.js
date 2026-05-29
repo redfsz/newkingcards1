@@ -8,11 +8,13 @@
   levelPresets,
   playerUltimateLibrary,
   requiredDeckCards,
-  sequenceDamageByLength
+  sequenceDamageByLength,
+  wagerLibrary
 } from "./gameData.js";
 
 const byId = new Map(cardLibrary.map((card) => [card.id, card]));
 const itemById = new Map(itemLibrary.map((item) => [item.id, item]));
+const wagerById = new Map(wagerLibrary.map((wager) => [wager.id, wager]));
 const buffById = new Map(initialBuffLibrary.map((buff) => [buff.id, buff]));
 const personaById = new Map(bossPersonaLibrary.map((persona) => [persona.id, persona]));
 
@@ -86,9 +88,15 @@ export function createStateFromConfig(config) {
     bossFourWins: [],
     playerPattern: [],
     bossPattern: [],
+    playerRoundDamage: 0,
+    bossRoundDamage: 0,
+    firstCollapseSide: null,
     playerCollapseStacks: 0,
     bossCollapseStacks: 0,
     bossPressure: 0,
+    wagerChoices: pickWagerChoices(normalized.id),
+    selectedWagerId: "",
+    resolvedWagerIds: [],
     customMoves: normalized.customMoves,
     selectedBossMoves: normalized.selectedBossMoves,
     ownedItems: normalized.ownedItems,
@@ -237,6 +245,13 @@ export function chooseItem(state, itemId) {
   return { ...state, activeItemId: state.activeItemId === itemId ? "" : itemId };
 }
 
+export function chooseWager(state, wagerId) {
+  const wager = wagerById.get(wagerId);
+  if (!wager || !(state.wagerChoices ?? []).includes(wagerId)) return state;
+  if (state.round > 1 || state.selectedWagerId || state.winner) return state;
+  return addLog({ ...state, selectedWagerId: wagerId }, "info", `额外赌局开始：【${wager.name}】。`);
+}
+
 export function playRound(state, playerCardKey) {
   if (state.winner) return state;
   let prepared = applyRoundStartEffects(state);
@@ -256,7 +271,7 @@ export function playRound(state, playerCardKey) {
     ? { ...rawBossCard, id: "disabled_card", name: `${rawBossCard.name}(失效)`, level: 0, levelOverride: 0, type: rawBossCard.type }
     : resolvePlayedCard(rawBossCard, "boss", prepared);
 
-  let next = { ...prepared, playerHand: prepared.playerHand.filter((card) => card.key !== rawPlayerCard.key), bossHand: prepared.bossHand.filter((card) => card.key !== rawBossCard.key), activeItemId: "", ownedItems: consumeItem(prepared.ownedItems, prepared.activeItemId) };
+  let next = { ...prepared, playerHand: prepared.playerHand.filter((card) => card.key !== rawPlayerCard.key), bossHand: prepared.bossHand.filter((card) => card.key !== rawBossCard.key), activeItemId: "", ownedItems: consumeItem(prepared.ownedItems, prepared.activeItemId), playerRoundDamage: 0, bossRoundDamage: 0 };
   const result = compareCards(playerCard, bossCard, prepared.weather, item, {
     playerHandBeforePlay: prepared.playerHand,
     bossHandBeforePlay: prepared.bossHand,
@@ -360,15 +375,18 @@ export function playRound(state, playerCardKey) {
   }
   if (rawPlayerCard.id === "thief" && result.player === "win") {
     next.bossHp = Math.max(0, next.bossHp - 5);
+    next.playerRoundDamage += 5;
     logs.push("玩家【盗贼】获胜：Boss 额外受到 5 点伤害。");
   }
   if (rawBossCard.id === "thief" && result.boss === "win") {
     next.playerHp = Math.max(0, next.playerHp - 5);
+    next.bossRoundDamage += 5;
     logs.push("Boss【盗贼】获胜：玩家额外受到 5 点伤害。");
   }
   if (item?.id === "regret") {
     next = recoverPlayerCard(next, rawPlayerCard.key, logs);
   }
+  next = checkRestrictionWagers(next, rawPlayerCard, item, logs);
   if (bossCardDisabledByItem(rawBossCard, item)) logs.push(`${item.name}生效：Boss 的【${rawBossCard.name}】本回合失效。`);
   else next = applyCardAfterPlay(next, rawBossCard, "boss", result.boss, logs);
   next = applyCardAfterPlay(next, rawPlayerCard, "player", result.player, logs);
@@ -380,16 +398,20 @@ export function playRound(state, playerCardKey) {
   next.playerPattern = trimPattern(playerResultForPattern ? [...next.playerPattern, playerResultForPattern] : next.playerPattern);
   next.bossPattern = trimPattern([...next.bossPattern, result.boss]);
   next = applyRuleAfterResult(next, result, bossCard, logs);
+  next = checkRoundWagers(next, result, logs);
   next.bossPressure = nextBossPressure(next, result.boss, logs);
   next = applyMoves(next, "player", logs);
   next = applyMoves(next, "boss", logs);
+  next = checkDamageWagers(next, logs);
   next.bossDamageReduction = 0;
 
   if (next.bossHp <= 0) { next.winner = "player"; logs.push("Boss 生命归零，玩家获胜。"); }
   else if (next.playerHp <= 0) { next.winner = "boss"; logs.push("玩家生命归零，Boss 获胜。"); }
   if (!next.winner && next.playerHand.length === 0) next = handleCollapse(next, "player", logs);
   if (!next.winner && next.bossHand.length === 0) next = handleCollapse(next, "boss", logs);
+  next = checkRestrictionWagers(next, null, null, logs);
 
+  next = checkEndWagers(next, logs);
   next.round += 1;
   return addLogs(next, logs);
 }
@@ -845,11 +867,11 @@ function applyMoves(state, side, logs) {
     if (isPlayer) {
       damage = applyPlayerMoveRuleDamage(next, move, damage);
       damage = Math.max(1, damage - (next.bossDamageReduction ?? 0));
-      next = { ...next, bossHp: Math.max(0, next.bossHp - damage), playerTriggeredMoveLengths: [...(next.playerTriggeredMoveLengths ?? []), move.pattern.length] };
+      next = { ...next, bossHp: Math.max(0, next.bossHp - damage), playerRoundDamage: (next.playerRoundDamage ?? 0) + damage, playerTriggeredMoveLengths: [...(next.playerTriggeredMoveLengths ?? []), move.pattern.length] };
       logs.push(`玩家触发招式【${move.name}】，Boss 受到 ${damage} 点伤害。`);
     } else {
       damage += next.bossMoveDamageBonus ?? 0;
-      next = { ...next, playerHp: Math.max(0, next.playerHp - damage), bossMoveDamageBonus: 0 };
+      next = { ...next, playerHp: Math.max(0, next.playerHp - damage), bossRoundDamage: (next.bossRoundDamage ?? 0) + damage, bossMoveDamageBonus: 0 };
       logs.push(`Boss 触发招式【${move.name}】，玩家受到 ${damage} 点伤害。`);
     }
   }
@@ -868,6 +890,7 @@ function handleCollapse(state, side, logs) {
   if (isPlayer && state.battleRule?.id === "execution_player_collapse_plus") damage += 3;
   if (isPlayer && hasBuff(state, "collapse_guard")) damage = Math.max(1, damage - 3);
   let next = { ...state };
+  if (!next.firstCollapseSide) next.firstCollapseSide = side;
   if (isPlayer) {
     next.playerHp = Math.max(0, next.playerHp - damage);
     logs.push(`${targetName}牌组被打空，进入崩溃状态，受到终极招式 ${damage} 点伤害。`);
@@ -965,6 +988,71 @@ function recoverBossCard(state, predicate) {
 function removePlayerDiscard(state) {
   if (state.playerDiscard.length === 0) return state;
   return { ...state, playerDiscard: state.playerDiscard.slice(1) };
+}
+function pickWagerChoices(seed) {
+  const choices = [];
+  let offset = deterministicRange(seed, 0, wagerLibrary.length - 1);
+  while (choices.length < 3 && choices.length < wagerLibrary.length) {
+    const wager = wagerLibrary[offset % wagerLibrary.length];
+    if (!choices.includes(wager.id)) choices.push(wager.id);
+    offset += 3;
+  }
+  return choices;
+}
+function resolveWager(state, wagerId, logs, success = true) {
+  if (!state.selectedWagerId || state.selectedWagerId !== wagerId || (state.resolvedWagerIds ?? []).includes(wagerId)) return state;
+  const wager = wagerById.get(wagerId);
+  if (!wager) return state;
+  if (success) {
+    logs.push(`额外赌局成功：【${wager.name}】。`);
+    return { ...state, resolvedWagerIds: [...(state.resolvedWagerIds ?? []), wagerId] };
+  }
+  logs.push(`额外赌局失败：【${wager.name}】。`);
+  return { ...state, resolvedWagerIds: [...(state.resolvedWagerIds ?? []), wagerId] };
+}
+function failSelectedWager(state, logs) {
+  if (!state.selectedWagerId || (state.resolvedWagerIds ?? []).includes(state.selectedWagerId)) return state;
+  return resolveWager(state, state.selectedWagerId, logs, false);
+}
+function checkRoundWagers(state, result, logs) {
+  let next = state;
+  if (state.round === 3 && result.player === "win") next = resolveWager(next, "player_round_3_win", logs);
+  if (state.round === 3 && result.boss === "win") next = resolveWager(next, "boss_round_3_win", logs);
+  if (state.round > 3 && ["player_round_3_win", "boss_round_3_win"].includes(state.selectedWagerId)) next = failSelectedWager(next, logs);
+  if (state.round >= 10) next = resolveWager(next, "long_fight", logs);
+  return next;
+}
+function checkDamageWagers(state, logs) {
+  let next = state;
+  if ((state.playerRoundDamage ?? 0) >= 5) next = resolveWager(next, "player_big_move", logs);
+  if ((state.bossRoundDamage ?? 0) >= 5) next = resolveWager(next, "boss_big_move", logs);
+  if (state.firstCollapseSide === "boss") next = resolveWager(next, "boss_first_collapse", logs);
+  if (state.firstCollapseSide === "player" && state.selectedWagerId === "boss_first_collapse") next = failSelectedWager(next, logs);
+  return next;
+}
+function checkRestrictionWagers(state, playerCard, item, logs) {
+  let next = state;
+  if (playerCard?.type === "能力卡") next = failSpecificWager(next, "no_player_ability", logs);
+  if (item) next = failSpecificWager(next, "no_player_item", logs);
+  if (next.playerDiscard.some((card) => card.id === "king")) next = failSpecificWager(next, "king_not_discarded", logs);
+  if (next.playerDiscard.some((card) => card.id === "commoner")) next = failSpecificWager(next, "commoner_not_discarded", logs);
+  return next;
+}
+function failSpecificWager(state, wagerId, logs) {
+  if (state.selectedWagerId !== wagerId || (state.resolvedWagerIds ?? []).includes(wagerId)) return state;
+  return resolveWager(state, wagerId, logs, false);
+}
+function checkEndWagers(state, logs) {
+  if (!state.winner) return state;
+  let next = state;
+  if (state.round <= 6) next = resolveWager(next, "fast_win", logs);
+  if (["no_player_ability", "no_player_item", "king_not_discarded", "commoner_not_discarded"].includes(state.selectedWagerId)) {
+    next = resolveWager(next, state.selectedWagerId, logs);
+  }
+  if (["fast_win", "long_fight", "player_big_move", "boss_big_move", "boss_first_collapse"].includes(state.selectedWagerId)) {
+    next = failSelectedWager(next, logs);
+  }
+  return next;
 }
 function nextBossPressure(state, bossResult, logs) {
   const current = state.bossPressure ?? 0;

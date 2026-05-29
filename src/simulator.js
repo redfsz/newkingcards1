@@ -63,6 +63,27 @@ export function createStateFromConfig(config) {
     revealedBossCardKeys: bossHand.slice(0, effective.revealCount).map((card) => card.key),
     playerLastCardKey: null,
     bossLastCardKey: null,
+    playerForcedLoss: false,
+    bossForcedLoss: false,
+    playerForcedWin: false,
+    bossForcedWin: false,
+    levelOrderReversed: false,
+    playerCivilized: false,
+    bossCivilized: false,
+    playerWarmDay: false,
+    bossWarmDay: false,
+    playerSnowflake: false,
+    bossSnowflake: false,
+    playerEvenForm: false,
+    bossEvenForm: false,
+    playerOddForm: false,
+    bossOddForm: false,
+    playerExponentialForm: false,
+    bossExponentialForm: false,
+    playerDaydream: false,
+    bossDaydream: false,
+    playerFourWins: [],
+    bossFourWins: [],
     playerPattern: [],
     bossPattern: [],
     playerCollapseStacks: 0,
@@ -101,6 +122,7 @@ export function stateToLevelConfig(state) {
     selectedBossMoves: state.selectedBossMoves,
     battleRule: state.battleRule,
     bossSkills: state.bossSkills,
+    levelOrderReversed: state.levelOrderReversed ?? false,
     ownedItems: state.ownedItems
   });
 }
@@ -126,6 +148,7 @@ export function normalizeLevelConfig(config) {
     selectedBossMoves: sanitizeIds(source.selectedBossMoves, bossMoveLibrary, fallback.selectedBossMoves, 10),
     battleRule: sanitizeBattleRule(source.battleRule),
     bossSkills: sanitizeBossSkills(source.bossSkills),
+    levelOrderReversed: Boolean(source.levelOrderReversed),
     ownedItems: sanitizeIds(source.ownedItems, itemLibrary, fallback.ownedItems, itemLibrary.length)
   };
 }
@@ -216,24 +239,46 @@ export function chooseItem(state, itemId) {
 export function playRound(state, playerCardKey) {
   if (state.winner) return state;
   let prepared = applyRoundStartEffects(state);
-  const legalCards = getLegalPlayerCards(state);
-  const selectedPlayerCardKey = hasBuff(state, "chaotic_battlefield") && legalCards.length > 0
+  const legalCards = getLegalPlayerCards(prepared);
+  const selectedPlayerCardKey = hasBuff(state, "chaotic_battlefield") && state.round <= 2 && legalCards.length > 0
     ? pickChaoticPlayerCard(legalCards, state.round).key
     : playerCardKey;
-  const playerCard = prepared.playerHand.find((card) => card.key === selectedPlayerCardKey);
-  if (!playerCard) return prepared;
+  const rawPlayerCard = prepared.playerHand.find((card) => card.key === selectedPlayerCardKey);
+  if (!rawPlayerCard) return prepared;
   if (!legalCards.some((card) => card.key === playerCardKey)) return addLog(prepared, "warn", "不能连续两次出同一张牌，除非可出牌只剩一张。");
 
-  const bossCard = chooseBossCard(prepared);
-  if (!bossCard) return handleCollapse(prepared, "boss", ["Boss 没有可出牌，进入崩溃状态。"]);
-
-  let next = { ...prepared, playerHand: prepared.playerHand.filter((card) => card.key !== playerCard.key), bossHand: prepared.bossHand.filter((card) => card.key !== bossCard.key), activeItemId: "" };
+  const rawBossCard = chooseBossCard(prepared);
+  if (!rawBossCard) return handleCollapse(prepared, "boss", ["Boss 没有可出牌，进入崩溃状态。"]);
   const item = itemById.get(prepared.activeItemId);
+  const playerCard = resolvePlayedCard(rawPlayerCard, "player", prepared);
+  const bossCard = bossCardDisabledByItem(rawBossCard, item)
+    ? { ...rawBossCard, id: "disabled_card", name: `${rawBossCard.name}(失效)`, level: 0, levelOverride: 0, type: rawBossCard.type }
+    : resolvePlayedCard(rawBossCard, "boss", prepared);
+
+  let next = { ...prepared, playerHand: prepared.playerHand.filter((card) => card.key !== rawPlayerCard.key), bossHand: prepared.bossHand.filter((card) => card.key !== rawBossCard.key), activeItemId: "" };
   const result = compareCards(playerCard, bossCard, prepared.weather, item, {
     playerHandBeforePlay: prepared.playerHand,
     bossHandBeforePlay: prepared.bossHand,
+    playerCivilized: prepared.playerCivilized,
+    bossCivilized: prepared.bossCivilized,
+    playerWarmDay: prepared.playerWarmDay,
+    bossWarmDay: prepared.bossWarmDay,
+    playerSnowflake: prepared.playerSnowflake,
+    bossSnowflake: prepared.bossSnowflake,
+    playerEvenForm: prepared.playerEvenForm,
+    bossEvenForm: prepared.bossEvenForm,
+    playerOddForm: prepared.playerOddForm,
+    bossOddForm: prepared.bossOddForm,
+    playerExponentialForm: prepared.playerExponentialForm,
+    bossExponentialForm: prepared.bossExponentialForm,
     activeBuffs: prepared.initialBuffs ?? [],
-    bossFourSymbolBonus: prepared.fourSymbolBonus
+    bossFourSymbolBonus: prepared.fourSymbolBonus,
+    playerForcedLoss: prepared.playerForcedLoss,
+    bossForcedLoss: prepared.bossForcedLoss,
+    playerForcedWin: prepared.playerForcedWin,
+    bossForcedWin: prepared.bossForcedWin,
+    round: prepared.round,
+    levelOrderReversed: prepared.levelOrderReversed
   });
   const logs = [];
   if (prepared.pendingLogs?.length) logs.push(...prepared.pendingLogs);
@@ -241,21 +286,79 @@ export function playRound(state, playerCardKey) {
   if (selectedPlayerCardKey !== playerCardKey) logs.push(`混乱战场生效：本回合随机改为打出【${playerCard.name}】。`);
 
   if (result.player === "win") {
-    next.playerHand = [...next.playerHand, playerCard];
-    next.bossDiscard = [...next.bossDiscard, bossCard];
+    next.playerHand = [...next.playerHand, rawPlayerCard];
+    next.bossDiscard = [...next.bossDiscard, rawBossCard];
   } else if (result.player === "loss") {
-    next.bossHand = [...next.bossHand, bossCard];
+    next.bossHand = [...next.bossHand, rawBossCard];
     if (item?.id === "save") {
-      next.playerHand = [...next.playerHand, playerCard];
+      next.playerHand = [...next.playerHand, rawPlayerCard];
       logs.push("续命牌生效：本回合输掉的牌回到手牌。");
-    } else next.playerDiscard = [...next.playerDiscard, playerCard];
+    } else next.playerDiscard = [...next.playerDiscard, rawPlayerCard];
   } else {
-    next.playerDiscard = [...next.playerDiscard, playerCard];
-    next.bossDiscard = [...next.bossDiscard, bossCard];
+    next.playerDiscard = [...next.playerDiscard, rawPlayerCard];
+    next.bossDiscard = [...next.bossDiscard, rawBossCard];
   }
 
-  next.playerLastCardKey = playerCard.key;
-  next.bossLastCardKey = bossCard.key;
+  next.playerLastCardKey = rawPlayerCard.key;
+  next.bossLastCardKey = rawBossCard.key;
+  if (prepared.playerForcedLoss) {
+    next.playerForcedLoss = false;
+    logs.push("玩家伪神反噬：本回合自动失败。");
+  }
+  if (prepared.bossForcedLoss) {
+    next.bossForcedLoss = false;
+    logs.push("Boss 伪神反噬：本回合自动失败。");
+  }
+  if (prepared.playerForcedWin) {
+    next.playerForcedWin = false;
+    logs.push("玩家占卜师预言兑现：本回合自动胜利。");
+  }
+  if (prepared.bossForcedWin) {
+    next.bossForcedWin = false;
+    logs.push("Boss 占卜师预言兑现：本回合自动胜利。");
+  }
+  if (rawPlayerCard.id === "false_god" && !prepared.playerForcedLoss) {
+    next.playerForcedLoss = true;
+    logs.push("玩家打出【伪神】：本次必胜，下回合自动失败。");
+  }
+  if (rawBossCard.id === "false_god" && !prepared.bossForcedLoss) {
+    next.bossForcedLoss = true;
+    logs.push("Boss 打出【伪神】：本次必胜，下回合自动失败。");
+  }
+  if (rawPlayerCard.id === "fortune_teller") {
+    next.playerForcedWin = true;
+    logs.push("玩家打出【占卜师】：本次自动失败，下回合自动胜利。");
+  }
+  if (rawBossCard.id === "fortune_teller") {
+    next.bossForcedWin = true;
+    logs.push("Boss 打出【占卜师】：本次自动失败，下回合自动胜利。");
+  }
+  if (rawPlayerCard.id === "perfect_match" || rawBossCard.id === "perfect_match") {
+    if (!prepared.levelOrderReversed) logs.push("【天作之合】生效：本场战斗等级排序反转，之后低等级牌会战胜高等级牌。");
+    next.levelOrderReversed = true;
+  }
+  if (rawPlayerCard.id === "civilization") {
+    next.playerCivilized = true;
+    logs.push("玩家打出【文明】：本场之后，玩家所有手牌视为国王。");
+  }
+  if (rawBossCard.id === "civilization") {
+    next.bossCivilized = true;
+    logs.push("Boss 打出【文明】：本场之后，Boss 所有手牌视为国王。");
+  }
+  if (rawPlayerCard.id === "thief" && result.player === "win") {
+    next.bossHp = Math.max(0, next.bossHp - 5);
+    logs.push("玩家【盗贼】获胜：Boss 额外受到 5 点伤害。");
+  }
+  if (rawBossCard.id === "thief" && result.boss === "win") {
+    next.playerHp = Math.max(0, next.playerHp - 5);
+    logs.push("Boss【盗贼】获胜：玩家额外受到 5 点伤害。");
+  }
+  if (item?.id === "regret") {
+    next = recoverPlayerCard(next, rawPlayerCard.key, logs);
+  }
+  if (bossCardDisabledByItem(rawBossCard, item)) logs.push(`${item.name}生效：Boss 的【${rawBossCard.name}】本回合失效。`);
+  else next = applyCardAfterPlay(next, rawBossCard, "boss", result.boss, logs);
+  next = applyCardAfterPlay(next, rawPlayerCard, "player", result.player, logs);
   const playerResultForPattern = next.ignoreNextBossLossSequence && result.boss === "loss" ? null : result.player;
   if (next.ignoreNextBossLossSequence && result.boss === "loss") {
     next.ignoreNextBossLossSequence = false;
@@ -372,7 +475,7 @@ function sanitizeCustomMoves(moves, legacySelectedMoves = null, fallbackMoves = 
     const fallback = defaultCustomMoves[index];
     const move = source[index] ?? fallback;
     const pattern = Array.isArray(move.pattern)
-      ? move.pattern.filter((entry) => entry === "win" || entry === "loss").slice(0, 6)
+      ? move.pattern.filter((entry) => entry === "win" || entry === "loss" || entry === "draw").slice(0, 6)
       : fallback.pattern;
     return {
       id: fallback.id,
@@ -394,39 +497,235 @@ function syncRevealedBossCards(state) {
 }
 function getAllBossCards(state) { return [...state.bossHand, ...state.bossDiscard]; }
 function getBossCardStatus(state, key) { if (state.bossHand.some((card) => card.key === key)) return "hand"; if (state.bossDiscard.some((card) => card.key === key)) return "discard"; return "unknown"; }
+function bossCardDisabledByItem(card, item) {
+  return (item?.id === "disable_function" && card.type === "额外功能卡")
+    || (item?.id === "disable_ability" && card.type === "能力卡");
+}
+function resolvePlayedCard(card, side, state) {
+  if (!card) return card;
+  const opponentLastKey = side === "player" ? state.bossLastCardKey : state.playerLastCardKey;
+  const opponentCards = side === "player"
+    ? [...state.bossHand, ...state.bossDiscard]
+    : [...state.playerHand, ...state.playerDiscard];
+  if (card.id === "shadow") {
+    const copied = opponentCards.find((entry) => entry.key === opponentLastKey);
+    if (copied) return { ...card, id: copied.id, name: `影子(${copied.name})`, level: copied.level, copiedFrom: copied.id };
+  }
+  if (card.id === "fate") {
+    const level = deterministicRange(`${card.key}-${state.round}`, 1, 3);
+    return { ...card, name: `命运(${level})`, levelOverride: level };
+  }
+  if (card.id === "daydream") {
+    const replacement = randomPlayableCard(`${card.key}-${state.round}`);
+    return { ...card, id: replacement.id, name: `白日梦(${replacement.name})`, level: replacement.level, daydreamAs: replacement.id };
+  }
+  return card;
+}
 function compareCards(playerCard, bossCard, weather, item, context = {}) {
-  const playerEffectiveId = effectiveCardId(playerCard, context.playerHandBeforePlay);
-  const bossEffectiveId = effectiveCardId(bossCard, context.bossHandBeforePlay);
-  const playerLevel = adjustedLevel(playerCard, weather, item, "player", context.playerHandBeforePlay, context.activeBuffs);
-  const bossLevel = adjustedLevel(bossCard, weather, item, "boss", context.bossHandBeforePlay) + (bossCard.id.startsWith("four_") ? context.bossFourSymbolBonus ?? 0 : 0);
+  const playerEffectiveId = effectiveCardId(playerCard, context.playerHandBeforePlay, context.playerCivilized);
+  const bossEffectiveId = effectiveCardId(bossCard, context.bossHandBeforePlay, context.bossCivilized);
+  const playerLevel = adjustedLevel(playerCard, weather, item, "player", context.playerHandBeforePlay, context.activeBuffs, context);
+  const bossLevel = adjustedLevel(bossCard, weather, item, "boss", context.bossHandBeforePlay, [], context) + (bossCard.id.startsWith("four_") ? context.bossFourSymbolBonus ?? 0 : 0);
+  const playerForcedWin = playerCard.id === "false_god" && !context.playerForcedLoss;
+  const bossForcedWin = bossCard.id === "false_god" && !context.bossForcedLoss;
+  if (context.playerForcedLoss && context.bossForcedLoss) return { player: "draw", boss: "draw", playerLevel, bossLevel, reason: "双方伪神反噬，双方失败" };
+  if (context.playerForcedLoss) return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "玩家伪神反噬，自动失败" };
+  if (context.bossForcedLoss) return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "Boss 伪神反噬，自动失败" };
+  if (context.playerForcedWin && context.bossForcedWin) return { player: "draw", boss: "draw", playerLevel, bossLevel, reason: "双方占卜预言同时兑现，双方失败" };
+  if (context.playerForcedWin) return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "玩家占卜预言兑现，自动胜利" };
+  if (context.bossForcedWin) return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "Boss 占卜预言兑现，自动胜利" };
+  if (playerCard.id === "fortune_teller" && bossCard.id === "fortune_teller") return { player: "draw", boss: "draw", playerLevel, bossLevel, reason: "双方都打出占卜师，本次双方失败" };
+  if (playerCard.id === "fortune_teller") return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "占卜师本次自动失败" };
+  if (bossCard.id === "fortune_teller") return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "Boss 占卜师本次自动失败" };
+  if (playerForcedWin && bossForcedWin) return { player: "draw", boss: "draw", playerLevel, bossLevel, reason: "双方都打出伪神，双方失败" };
+  if (playerForcedWin) return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "玩家伪神生效，本次必胜" };
+  if (bossForcedWin) return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "Boss 伪神生效，本次必胜" };
   if (playerCard.id === "assassin" || bossCard.id === "assassin") return { player: "draw", boss: "draw", playerLevel, bossLevel, reason: "刺客强制双方失败" };
   if (playerEffectiveId === "commoner" && bossEffectiveId === "king") return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "平民克制国王" };
   if (bossEffectiveId === "commoner" && playerEffectiveId === "king") return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "平民克制国王" };
-  if (playerLevel > bossLevel) return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "高等级获胜" };
-  if (playerLevel < bossLevel) return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "高等级获胜" };
+  if (context.levelOrderReversed) {
+    if (playerLevel < bossLevel) return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "天作之合生效，低等级获胜" };
+    if (playerLevel > bossLevel) return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "天作之合生效，低等级获胜" };
+  } else {
+    if (playerLevel > bossLevel) return { player: "win", boss: "loss", playerLevel, bossLevel, reason: "高等级获胜" };
+    if (playerLevel < bossLevel) return { player: "loss", boss: "win", playerLevel, bossLevel, reason: "高等级获胜" };
+  }
   return { player: "draw", boss: "draw", playerLevel, bossLevel, reason: "同等级双方失败" };
 }
-function effectiveCardId(card, handBeforePlay = []) {
+function effectiveCardId(card, handBeforePlay = [], civilized = false) {
+  if (civilized) return "king";
   if (card.id === "regicide") return handBeforePlay.some((handCard) => handCard.id === "king") ? card.id : "king";
   if (card.id === "rebel") return handBeforePlay.some((handCard) => handCard.id === "minister") ? card.id : "minister";
   if (card.id === "beggar") return handBeforePlay.some((handCard) => handCard.id === "commoner") ? card.id : "commoner";
   return card.id;
 }
-function adjustedLevel(card, weather, item, side, handBeforePlay = [], activeBuffs = []) {
-  let level = card.level;
+function adjustedLevel(card, weather, item, side, handBeforePlay = [], activeBuffs = [], context = {}) {
+  let level = card.levelOverride ?? card.level;
+  const civilized = side === "player" ? context.playerCivilized : context.bossCivilized;
   if (side === "player") {
     if (card.id === "commoner" && activeBuffs.includes("random_commoner")) level = deterministicRange(card.key, 0, 2);
     if (card.id === "king" && activeBuffs.includes("random_king")) level = deterministicRange(card.key, 0, 4);
   }
-  const effective = effectiveCardId(card, handBeforePlay);
+  const effective = effectiveCardId(card, handBeforePlay, civilized);
   if (effective === "king" && card.id !== "king") level = 3;
   if (effective === "minister" && card.id !== "minister") level = 2;
   if (effective === "commoner" && card.id !== "commoner") level = 1;
   if (Number.isFinite(level) && Math.abs(level % 1 - 0.5) < 0.01) { if (weather === "sun") level -= 0.5; if (weather === "hail") level += 0.5; }
+  if (Number.isFinite(level) && Math.abs(level % 1 - 0.5) < 0.01) {
+    if (side === "player" && context.playerWarmDay) level += 0.25;
+    if (side === "boss" && context.bossWarmDay) level += 0.25;
+    if (side === "player" && context.bossSnowflake) level -= 0.25;
+    if (side === "boss" && context.playerSnowflake) level -= 0.25;
+  }
+  if (side === "player" && context.playerEvenForm && context.round % 2 === 0) level += 1;
+  if (side === "boss" && context.bossEvenForm && context.round % 2 === 0) level += 1;
+  if (side === "player" && context.playerOddForm && context.round % 2 === 1) level += 1;
+  if (side === "boss" && context.bossOddForm && context.round % 2 === 1) level += 1;
+  if (side === "player" && context.playerExponentialForm) level *= level;
+  if (side === "boss" && context.bossExponentialForm) level *= level;
   if (side === "player" && item?.id === "plus_half") level += 0.5;
   if (side === "player" && item?.id === "plus_one") level += 1;
   if (side === "boss" && item?.id === "minus_half") level -= 0.5;
+  if (side === "boss" && item?.id === "minus_one") level -= 1;
   return Number(level.toFixed(2));
+}
+function applyCardAfterPlay(state, card, side, outcome, logs) {
+  let next = state;
+  const isPlayer = side === "player";
+  const sideName = isPlayer ? "玩家" : "Boss";
+  const handKey = isPlayer ? "playerHand" : "bossHand";
+  const discardKey = isPlayer ? "playerDiscard" : "bossDiscard";
+  const opponentHandKey = isPlayer ? "bossHand" : "playerHand";
+  const opponentDiscardKey = isPlayer ? "bossDiscard" : "playerDiscard";
+  const flagPrefix = isPlayer ? "player" : "boss";
+
+  if (card.id === "warm_day") {
+    next = { ...next, [`${flagPrefix}WarmDay`]: true };
+    logs.push(`${sideName}打出【暖日】：本场之后己方所有 .5 等级牌 +0.25。`);
+  } else if (card.id === "snowflake") {
+    next = { ...next, [`${flagPrefix}Snowflake`]: true };
+    logs.push(`${sideName}打出【雪花】：本场之后敌方所有 .5 等级牌 -0.25。`);
+  } else if (card.id === "even_form") {
+    next = { ...next, [`${flagPrefix}EvenForm`]: true };
+    logs.push(`${sideName}打出【偶数形态】：本场之后己方偶数回合等级 +1。`);
+  } else if (card.id === "odd_form") {
+    next = { ...next, [`${flagPrefix}OddForm`]: true };
+    logs.push(`${sideName}打出【奇数形态】：本场之后己方奇数回合等级 +1。`);
+  } else if (card.id === "exponential_form") {
+    next = { ...next, [`${flagPrefix}ExponentialForm`]: true };
+    logs.push(`${sideName}打出【指数形态】：本场之后己方出牌等级变为平方，并会额外弃掉 1 张手牌。`);
+  } else if (card.id === "daydream") {
+    next = { ...next, [`${flagPrefix}Daydream`]: true };
+    logs.push(`${sideName}打出【白日梦】：本场之后每回合开始时，将 1 张手牌替换为随机牌。`);
+  } else if (card.id === "all_in") {
+    next = doubleOneHandCard(next, handKey, logs, sideName);
+  } else if (card.id === "hope") {
+    next = recoverOwnDiscard(next, handKey, discardKey, logs, sideName);
+  } else if (card.id === "demon") {
+    next = discardOpponentCard(next, opponentHandKey, opponentDiscardKey, logs, sideName);
+  } else if (card.id === "forge_blade") {
+    next = updateCardLevel(next, card.key, 0.1);
+    logs.push(`${sideName}打出【铸剑】：这张牌等级永久 +0.1。`);
+  } else if (card.id === "strike_blade") {
+    next = updateCardLevel(next, card.key, -0.1);
+    logs.push(`${sideName}打出【挥剑】：这张牌等级永久 -0.1。`);
+  } else if (card.id === "final_moment") {
+    next = keepCoreCardsOnly(next);
+    logs.push(`${sideName}打出【最终时刻】：双方弃掉手牌中除国王、大臣、平民外的所有牌。`);
+  } else if (card.id === "golden_necklace") {
+    logs.push(`${sideName}打出【金色项链】：这是经济效果，当前模拟器不改变战斗结算。`);
+  }
+
+  if (card.id.startsWith("four_") && outcome === "win") {
+    const winsKey = isPlayer ? "playerFourWins" : "bossFourWins";
+    const wins = new Set(next[winsKey] ?? []);
+    wins.add(card.id);
+    next = { ...next, [winsKey]: [...wins] };
+    logs.push(`${sideName}四象进度：${wins.size}/4。`);
+    if (wins.size >= 4) {
+      next = { ...next, winner: side };
+      logs.push(`${sideName}四象全部获胜一次，直接获得战斗胜利。`);
+    }
+  }
+
+  if ((isPlayer ? next.playerExponentialForm : next.bossExponentialForm) && card.id !== "exponential_form") {
+    next = discardExtraHandCard(next, handKey, discardKey, logs, sideName);
+  }
+  if (!isPlayer) next = syncRevealedBossCards(next);
+  return next;
+}
+function doubleOneHandCard(state, handKey, logs, sideName) {
+  const target = state[handKey].find((entry) => entry.type !== "一次性卡牌");
+  if (!target) return state;
+  const nextHand = state[handKey].map((entry) => entry.key === target.key ? { ...entry, levelOverride: Number(((entry.levelOverride ?? entry.level) * 2).toFixed(2)) } : entry);
+  logs.push(`${sideName}打出【孤注一掷】：【${target.name}】等级翻倍。`);
+  return { ...state, [handKey]: nextHand };
+}
+function recoverOwnDiscard(state, handKey, discardKey, logs, sideName) {
+  const target = state[discardKey][0];
+  if (!target) return state;
+  logs.push(`${sideName}打出【希望】：【${target.name}】从弃牌堆回到手牌。`);
+  return { ...state, [discardKey]: state[discardKey].slice(1), [handKey]: [...state[handKey], target] };
+}
+function discardOpponentCard(state, handKey, discardKey, logs, sideName) {
+  const target = state[handKey][0];
+  if (!target) return state;
+  logs.push(`${sideName}打出【恶魔】：对方【${target.name}】被移入弃牌堆。`);
+  return { ...state, [handKey]: state[handKey].slice(1), [discardKey]: [...state[discardKey], target] };
+}
+function updateCardLevel(state, cardKey, delta) {
+  const update = (cards) => cards.map((entry) => entry.key === cardKey ? { ...entry, level: Math.max(0, Number((entry.level + delta).toFixed(2))) } : entry);
+  return {
+    ...state,
+    playerHand: update(state.playerHand),
+    playerDiscard: update(state.playerDiscard),
+    bossHand: update(state.bossHand),
+    bossDiscard: update(state.bossDiscard)
+  };
+}
+function keepCoreCardsOnly(state) {
+  const isCore = (card) => ["king", "minister", "commoner"].includes(card.id);
+  const playerMoved = state.playerHand.filter((card) => !isCore(card));
+  const bossMoved = state.bossHand.filter((card) => !isCore(card));
+  return syncRevealedBossCards({
+    ...state,
+    playerHand: state.playerHand.filter(isCore),
+    playerDiscard: [...state.playerDiscard, ...playerMoved],
+    bossHand: state.bossHand.filter(isCore),
+    bossDiscard: [...state.bossDiscard, ...bossMoved]
+  });
+}
+function discardExtraHandCard(state, handKey, discardKey, logs, sideName) {
+  const target = state[handKey][0];
+  if (!target) return state;
+  logs.push(`${sideName}指数形态代价：【${target.name}】额外进入弃牌堆。`);
+  return { ...state, [handKey]: state[handKey].slice(1), [discardKey]: [...state[discardKey], target] };
+}
+function recoverPlayerCard(state, justPlayedKey, logs) {
+  const target = state.playerDiscard.find((card) => card.key !== justPlayedKey);
+  if (!target) return state;
+  logs.push(`后悔牌生效：【${target.name}】从弃牌堆回到手牌。`);
+  return { ...state, playerDiscard: state.playerDiscard.filter((card) => card.key !== target.key), playerHand: [...state.playerHand, target] };
+}
+function randomPlayableCard(key) {
+  const pool = cardLibrary.filter((card) => !isOneTimeCard(card) && card.id !== "daydream");
+  return pool[deterministicRange(key, 0, pool.length - 1)] ?? byId.get("commoner");
+}
+function applyDaydreamReplacement(state, side, logs) {
+  const isPlayer = side === "player";
+  const handKey = isPlayer ? "playerHand" : "bossHand";
+  const sideName = isPlayer ? "玩家" : "Boss";
+  const candidates = state[handKey].filter((card) => !requiredDeckCards.includes(card.id));
+  const target = candidates[0];
+  if (!target) return state;
+  const replacement = {
+    ...randomPlayableCard(`${target.key}-${state.round}`),
+    key: target.key,
+    levelOverride: undefined
+  };
+  logs.push(`${sideName}白日梦生效：【${target.name}】变为【${replacement.name}】。`);
+  const next = { ...state, [handKey]: state[handKey].map((card) => card.key === target.key ? replacement : card) };
+  return isPlayer ? next : syncRevealedBossCards(next);
 }
 function chooseBossCard(state) {
   const legal = state.bossHand.length <= 1 ? state.bossHand : state.bossHand.filter((card) => card.key !== state.bossLastCardKey);
@@ -444,10 +743,20 @@ function rankBossCardsByPlan(state, legal) {
 }
 function scoreBossCard(state, card, phase, legal) {
   const personaId = state.bossPersona?.id ?? "gatekeeper";
-  const level = adjustedLevel(card, state.weather, null, "boss", state.bossHand);
-  const highest = Math.max(...legal.map((entry) => adjustedLevel(entry, state.weather, null, "boss", state.bossHand)));
+  const bossContext = {
+    round: state.round,
+    bossCivilized: state.bossCivilized,
+    bossWarmDay: state.bossWarmDay,
+    bossSnowflake: state.bossSnowflake,
+    playerSnowflake: state.playerSnowflake,
+    bossEvenForm: state.bossEvenForm,
+    bossOddForm: state.bossOddForm,
+    bossExponentialForm: state.bossExponentialForm
+  };
+  const level = adjustedLevel(resolvePlayedCard(card, "boss", state), state.weather, null, "boss", state.bossHand, [], bossContext);
+  const highest = Math.max(...legal.map((entry) => adjustedLevel(resolvePlayedCard(entry, "boss", state), state.weather, null, "boss", state.bossHand, [], bossContext)));
   const topThree = [...legal]
-    .sort((a, b) => adjustedLevel(b, state.weather, null, "boss", state.bossHand) - adjustedLevel(a, state.weather, null, "boss", state.bossHand))
+    .sort((a, b) => adjustedLevel(resolvePlayedCard(b, "boss", state), state.weather, null, "boss", state.bossHand, [], bossContext) - adjustedLevel(resolvePlayedCard(a, "boss", state), state.weather, null, "boss", state.bossHand, [], bossContext))
     .slice(0, 3)
     .map((entry) => entry.key);
   let score = 0;
@@ -557,6 +866,8 @@ function collapseDamage(maxHp, ultimateLevel, weather) {
 function applyRoundStartEffects(state) {
   const logs = [];
   let next = { ...state, pendingLogs: [] };
+  if (next.playerDaydream) next = applyDaydreamReplacement(next, "player", logs);
+  if (next.bossDaydream) next = applyDaydreamReplacement(next, "boss", logs);
   if (next.battleRule?.id === "ice_hide_every_3" && next.round > 1 && next.round % 3 === 0) {
     next = hideRevealedBossCards(next, 1);
     logs.push("冰雾棋盘生效：隐藏 1 张已透视 Boss 牌。");
@@ -635,11 +946,37 @@ function nextBossPressure(state, bossResult, logs) {
   return current;
 }
 function cardLikelyWins(state, bossCard) {
-  return state.playerHand.some((playerCard) => compareCards(playerCard, bossCard, state.weather, null, { playerHandBeforePlay: state.playerHand, bossHandBeforePlay: state.bossHand, activeBuffs: state.initialBuffs ?? [] }).boss === "win");
+  return state.playerHand.some((playerCard) => compareCards(resolvePlayedCard(playerCard, "player", state), resolvePlayedCard(bossCard, "boss", state), state.weather, null, comparisonContext(state)).boss === "win");
 }
 function canBeatLikelyPlayerCard(state, bossCard) {
   const visible = state.playerHand.filter((card) => card.key !== state.playerLastCardKey);
-  return visible.some((playerCard) => compareCards(playerCard, bossCard, state.weather, null, { playerHandBeforePlay: state.playerHand, bossHandBeforePlay: state.bossHand, activeBuffs: state.initialBuffs ?? [] }).boss === "win");
+  return visible.some((playerCard) => compareCards(resolvePlayedCard(playerCard, "player", state), resolvePlayedCard(bossCard, "boss", state), state.weather, null, comparisonContext(state)).boss === "win");
+}
+function comparisonContext(state) {
+  return {
+    playerHandBeforePlay: state.playerHand,
+    bossHandBeforePlay: state.bossHand,
+    playerCivilized: state.playerCivilized,
+    bossCivilized: state.bossCivilized,
+    playerWarmDay: state.playerWarmDay,
+    bossWarmDay: state.bossWarmDay,
+    playerSnowflake: state.playerSnowflake,
+    bossSnowflake: state.bossSnowflake,
+    playerEvenForm: state.playerEvenForm,
+    bossEvenForm: state.bossEvenForm,
+    playerOddForm: state.playerOddForm,
+    bossOddForm: state.bossOddForm,
+    playerExponentialForm: state.playerExponentialForm,
+    bossExponentialForm: state.bossExponentialForm,
+    activeBuffs: state.initialBuffs ?? [],
+    bossFourSymbolBonus: state.fourSymbolBonus,
+    playerForcedLoss: state.playerForcedLoss,
+    bossForcedLoss: state.bossForcedLoss,
+    playerForcedWin: state.playerForcedWin,
+    bossForcedWin: state.bossForcedWin,
+    levelOrderReversed: state.levelOrderReversed,
+    round: state.round
+  };
 }
 function wouldBreakPlayerPattern(state) {
   const pattern = state.playerPattern ?? [];

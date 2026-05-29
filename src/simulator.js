@@ -172,24 +172,21 @@ export function toggleInitialBuff(state, buffId) {
 }
 
 export function toggleCardInDeck(state, side, cardId) {
+  return setCardCountInDeck(state, side, cardId, countCardsById([...state[side === "player" ? "playerHand" : "bossHand"], ...state[side === "player" ? "playerDiscard" : "bossDiscard"]], cardId) > 0 ? 0 : 1);
+}
+
+export function setCardCountInDeck(state, side, cardId, count) {
   const card = byId.get(cardId);
   if (!card) return state;
   if (side === "boss" && isOneTimeCard(card)) return addLog(state, "warn", "Boss 不能携带一次性牌。一次性牌是给玩家使用的道具。");
-  if (requiredDeckCards.includes(cardId)) return addLog(state, "warn", "国王和平民是固定核心牌，不能从任意一方卡组中移除。");
+  const nextCount = requiredDeckCards.includes(cardId) ? 1 : clampNumber(count, 0, 9, 0);
 
   const handKey = side === "player" ? "playerHand" : "bossHand";
   const discardKey = side === "player" ? "playerDiscard" : "bossDiscard";
-  const cards = [...state[handKey], ...state[discardKey]];
-  const existing = cards.find((entry) => entry.id === cardId);
-
-  if (existing) {
-    const next = { ...state, [handKey]: state[handKey].filter((entry) => entry.id !== cardId), [discardKey]: state[discardKey].filter((entry) => entry.id !== cardId) };
-    return side === "boss" ? syncRevealedBossCards(next) : next;
-  }
-  if (cards.length >= 10) return addLog(state, "warn", "出战牌最多 10 张，先移除一张再添加。");
-
+  const others = [...state[handKey], ...state[discardKey]].filter((entry) => entry.id !== cardId);
+  if (others.length + nextCount > 10) return addLog(state, "warn", "出战牌最多 10 张，先减少其他牌的数量。");
   const prefix = side === "player" ? "p" : "b";
-  const next = { ...state, [handKey]: [...state[handKey], ...createCards([cardId], prefix)] };
+  const next = { ...state, [handKey]: [...others, ...createCards(Array.from({ length: nextCount }, () => cardId), prefix)], [discardKey]: [] };
   return side === "boss" ? syncRevealedBossCards(next) : next;
 }
 
@@ -344,8 +341,10 @@ export function playRound(state, playerCardKey) {
     logs.push("Boss 打出【占卜师】：本次自动失败，下回合自动胜利。");
   }
   if (rawPlayerCard.id === "perfect_match" || rawBossCard.id === "perfect_match") {
-    if (!prepared.levelOrderReversed) logs.push("【天作之合】生效：本场战斗等级排序反转，之后低等级牌会战胜高等级牌。");
-    next.levelOrderReversed = true;
+    next.levelOrderReversed = !prepared.levelOrderReversed;
+    logs.push(next.levelOrderReversed
+      ? "【天作之合】生效：等级排序反转，之后低等级牌会战胜高等级牌。"
+      : "【天作之合】再次生效：等级排序恢复，之后高等级牌会战胜低等级牌。");
   }
   if (rawPlayerCard.id === "civilization") {
     next.playerCivilized = true;
@@ -433,7 +432,8 @@ function sanitizeDeck(deck, side) {
     const card = byId.get(id);
     if (!card) continue;
     if (side === "boss" && isOneTimeCard(card)) continue;
-    if (!clean.includes(id)) clean.push(id);
+    if (requiredDeckCards.includes(id)) continue;
+    clean.push(id);
     if (clean.length >= 10) break;
   }
   return clean.slice(0, 10);
@@ -495,6 +495,7 @@ function sanitizeCustomMoves(moves, legacySelectedMoves = null, fallbackMoves = 
   });
 }
 function collectDeckIds(hand, discard) { return [...hand, ...discard].map((card) => card.id); }
+function countCardsById(cards, cardId) { return cards.filter((card) => card.id === cardId).length; }
 function isOneTimeCard(card) { return card.type === "一次性卡牌"; }
 function clampNumber(value, min, max, fallback) { const n = Number(value); if (!Number.isFinite(n)) return fallback; return Math.max(min, Math.min(max, Math.round(n))); }
 function syncRevealedBossCards(state) {
@@ -740,6 +741,10 @@ function applyDaydreamReplacement(state, side, logs) {
 function chooseBossCard(state) {
   const legal = state.bossHand.length <= 1 ? state.bossHand : state.bossHand.filter((card) => card.key !== state.bossLastCardKey);
   if (legal.length === 0) return null;
+  if ((state.currentLevelId === "floor_7_boss" || state.bossPersona?.id === "king") && state.round === 1) {
+    const perfectMatch = legal.find((card) => card.id === "perfect_match");
+    if (perfectMatch) return perfectMatch;
+  }
   return rankBossCardsByPlan(state, legal)[0];
 }
 function rankBossCardsByPlan(state, legal) {
@@ -799,9 +804,11 @@ function scoreBossCard(state, card, phase, legal) {
     if (cardLikelyWins(state, card)) score += 45;
     if (wouldExtendBossWinPattern(state, card)) score += 30;
   } else if (personaId === "king") {
-    score += phase <= 1 ? 22 - Math.abs(level - 2.3) * 6 : level * 10;
+    if (state.levelOrderReversed) score += (4 - level) * (phase >= 2 ? 14 : 9);
+    else score += phase <= 1 ? 22 - Math.abs(level - 2.3) * 6 : level * 10;
     if (card.id === "commoner" && state.playerHand.some((playerCard) => playerCard.id === "king")) score += phase < 3 ? 55 : 18;
     if (card.id === "king" && state.playerHand.some((playerCard) => playerCard.id === "commoner")) score -= 28;
+    if (state.levelOrderReversed && ["thief", "beggar", "rebel", "maid"].includes(card.id)) score += 20;
   }
 
   if (state.bossPattern.at(-1) === "loss") score += level * 4;

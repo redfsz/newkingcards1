@@ -83,13 +83,13 @@ export const bossMoveLibrary = [
   { id: "boss_grind", name: "消耗战", pattern: ["win", "loss", "win"], damage: 5, note: "胜负交错时稳定压血" },
   { id: "boss_execution", name: "处刑序列", pattern: ["win", "win", "loss", "win"], damage: 7, note: "高阶 Boss 的压迫序列" },
   { id: "boss_ritual", name: "仪式回响", pattern: ["loss", "win", "loss", "win"], damage: 7, note: "组合型 Boss 的节奏招式" },
-  { id: "boss_final", name: "终局王令", pattern: ["win", "win", "win", "win"], damage: 9, note: "最终 Boss 的连续压制招式" },
+  { id: "boss_final", name: "终局王令", pattern: ["loss", "win", "win", "win"], damage: 9, note: "最终 Boss 先改写规则，再连续反打" },
   { id: "boss_probe_chain", name: "试探刺击", pattern: ["win", "loss"], damage: 2, note: "前期 Boss 用于制造节奏变化" },
   { id: "boss_wall", name: "盾墙反扑", pattern: ["loss", "loss", "win"], damage: 5, note: "防守型 Boss 承受压力后的反击" },
   { id: "boss_frost_lock", name: "冰封读牌", pattern: ["loss", "win", "loss"], damage: 4, note: "控制型 Boss 打断玩家节奏后造成伤害" },
   { id: "boss_symbol_lock", name: "四象合围", pattern: ["win", "loss", "win", "win"], damage: 8, note: "四象 Boss 的组合爆发" },
   { id: "boss_gamble_swing", name: "豪赌翻盘", pattern: ["win", "loss", "loss", "win"], damage: 8, note: "赌徒先赢造势，再连续亏牌攒压力，最后赢回一手爆发" },
-  { id: "boss_crown_check", name: "王权审判", pattern: ["loss", "win", "win", "loss", "win"], damage: 10, note: "最终 Boss 的长线压制招式" }
+  { id: "boss_crown_check", name: "王权审判", pattern: ["loss", "win", "loss", "win", "win"], damage: 10, note: "最终 Boss 围绕规则反转形成的长线招式" }
 ];
 
 export const playerUltimateLibrary = [
@@ -170,7 +170,7 @@ export const levelPresets = [
 
   { id: "floor_7_npc", floor: 7, battleType: "npc", name: "第七层：王座侍从", bossPersona: "king", playerMaxHp: 30, bossMaxHp: 26, weather: "clear", revealCount: 4, initialBuffs: [], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "guard", "noble", "queen", "rebel", "beggar"], selectedBossMoves: ["boss_single", "boss_double"], ownedItems: ["peek", "plus_one", "minus_half", "save"] },
   { id: "floor_7_duel", floor: 7, battleType: "duel", name: "第七层：主角之影", bossPersona: "king", playerMaxHp: 30, bossMaxHp: 34, weather: "clear", revealCount: 4, initialBuffs: ["collapse_guard"], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "guard", "noble", "queen", "strike_blade", "forge_blade", "false_god"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait"], ownedItems: ["peek", "plus_one", "minus_half", "save"] },
-  { id: "floor_7_boss", floor: 7, battleType: "boss", name: "第七层 Boss：王座之影", bossPersona: "king", playerMaxHp: 30, bossMaxHp: 44, weather: "clear", revealCount: 4, initialBuffs: ["chaotic_battlefield", "collapse_guard"], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "minister", "commoner", "guard", "noble", "queen", "strike_blade", "forge_blade", "civilization", "perfect_match"], selectedBossMoves: ["boss_single", "boss_double", "boss_bait", "boss_triple", "boss_counter_chain", "boss_comeback", "boss_grind", "boss_execution", "boss_final", "boss_crown_check"], battleRule: { id: "king_repeat_length_penalty", name: "王座法则", text: "玩家连续触发同长度招式时，从第二次开始该招式伤害 -1，最低为 1。王座之影会用文明和天作之合改变基础规则，逼玩家重新判断牌序。" }, bossSkills: [{ round: 3, name: "王权凝视", effect: "reduceReveal", value: 1, text: "玩家透视数量 -1，最低为 0。" }, { round: 6, name: "旧律重申", effect: "clearBothPatterns", value: 1, text: "清空双方胜负序列，打断玩家招式积累。" }, { round: 9, name: "终局加冕", effect: "finalCoronation", value: 3, text: "清空双方胜负序列，Boss 下一次招式伤害 +3。" }], ownedItems: ["peek", "plus_one", "minus_half", "save"] }
+  { id: "floor_7_boss", floor: 7, battleType: "boss", name: "第七层 Boss：王座之影", bossPersona: "king", playerMaxHp: 30, bossMaxHp: 44, weather: "clear", revealCount: 4, initialBuffs: ["chaotic_battlefield", "collapse_guard"], playerDeck: ["king", "minister", "commoner"], bossDeck: ["king", "commoner", "perfect_match", "thief", "beggar", "rebel", "maid", "forge_blade", "assassin", "fortune_teller"], selectedBossMoves: ["boss_single", "boss_bait", "boss_counter_chain", "boss_comeback", "boss_grind", "boss_final", "boss_crown_check"], battleRule: { id: "king_repeat_length_penalty", name: "王座法则", text: "王座之影第一次行动会打出天作之合，之后等级排序反转，低等级牌获胜。玩家连续触发同长度招式时，从第二次开始该招式伤害 -1，最低为 1。" }, bossSkills: [{ round: 3, name: "王权凝视", effect: "reduceReveal", value: 1, text: "玩家透视数量 -1，最低为 0。" }, { round: 6, name: "旧律重申", effect: "clearBothPatterns", value: 1, text: "清空双方胜负序列，打断玩家招式积累。" }, { round: 9, name: "终局加冕", effect: "finalCoronation", value: 3, text: "清空双方胜负序列，Boss 下一次招式伤害 +3。" }], ownedItems: ["peek", "plus_one", "minus_half", "save"] }
 ];
 
 

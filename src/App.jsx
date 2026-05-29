@@ -42,8 +42,8 @@ import {
   setPlayerUltimateLevel,
   setRevealCount,
   setWeather,
+  setCardCountInDeck,
   stateToLevelConfig,
-  toggleCardInDeck,
   toggleInitialBuff,
   toggleItem,
   toggleMove
@@ -270,8 +270,8 @@ export function App() {
         <section className="panel deckPanel">
           <div className="panelTitle"><Swords size={18} /><h2>卡组开关</h2></div>
           <div className="deckColumns">
-            <DeckToggles title="玩家卡组" side="player" cards={game.playerHand.concat(game.playerDiscard)} onToggle={(id) => setGame((state) => toggleCardInDeck(state, "player", id))} />
-            <DeckToggles title="Boss 卡组" side="boss" cards={game.bossHand.concat(game.bossDiscard)} onToggle={(id) => setGame((state) => toggleCardInDeck(state, "boss", id))} />
+            <DeckToggles title="玩家卡组" side="player" cards={game.playerHand.concat(game.playerDiscard)} onCount={(id, count) => setGame((state) => setCardCountInDeck(state, "player", id, count))} />
+            <DeckToggles title="Boss 卡组" side="boss" cards={game.bossHand.concat(game.bossDiscard)} onCount={(id, count) => setGame((state) => setCardCountInDeck(state, "boss", id, count))} />
           </div>
         </section>
 
@@ -316,7 +316,7 @@ function RulesModal({ onClose }) {
           <h3>比牌</h3>
           <p>通常等级高的牌获胜。国王 3，大臣 2，平民 1，但平民克制国王。同等级双方失败。弑君者、乱党、乞丐会在缺少对应核心牌时临时视为国王、大臣、平民。</p>
           <h3>出牌限制</h3>
-          <p>不能连续两次打出同一张牌，除非你当前可出牌只剩一张。</p>
+          <p>不能连续两次打出同一张具体手牌，除非你当前可出牌只剩一张。卡组里可以携带多张同名牌；国王和平民固定各 1 张，其他牌可以重复携带。</p>
           <h3>透视</h3>
           <p>透视能看到一部分对手手牌。如果对手本回合要出的牌在透视范围内，会显示“本回合已知”。透视牌会显示还在手牌或已进弃牌。后期 Boss 可能隐藏透视牌或减少透视数量。</p>
           <h3>招式</h3>
@@ -333,6 +333,8 @@ function RulesModal({ onClose }) {
           <p>只有 Boss 战有地形规则。比如巡逻队长第一次崩溃免伤、雪花谋士隐藏透视、四象门主积累仪式、伪神赌徒让双方失败也增加压力、暖风裁决者提高玩家崩溃伤害、王座之影削弱重复同长度招式。</p>
           <h3>道具和天气</h3>
           <p>道具牌是给玩家用的一次性工具，比如预见牌、加等级、减 Boss 等级、续命牌。Boss 默认不携带一次性牌。天气会影响部分牌或崩溃效果，例如烈日/冰雹改变 .5 等级牌，暖风强化崩溃伤害。</p>
+          <h3>能力牌</h3>
+          <p>能力牌可以多次打出，具体效果按每次打出的规则结算。比如天作之合每打出一次都会切换等级排序：第一次变成低等级获胜，第二次会恢复为高等级获胜。</p>
           <h3>上手建议</h3>
           <p>先从第一层 NPC 战开始。不要急着改配置，先理解国王、大臣、平民，再尝试“胜”“胜胜”“负胜”等短招式。</p>
         </div>
@@ -411,9 +413,31 @@ function CustomMoveEditor({ move, damage, onStep, onLength }) {
     </div>
   );
 }
-function DeckToggles({ title, side, cards, onToggle }) {
-  const ownedIds = new Set(cards.map((card) => card.id));
-  return <div><h3>{title}（{cards.length}/10）</h3><div className="libraryGrid">{cardLibrary.map((card) => { const disabled = side === "boss" && card.type === "一次性卡牌"; return <button key={card.id} className={ownedIds.has(card.id) ? "active" : ""} disabled={disabled} onClick={() => onToggle(card.id)} title={disabled ? "Boss 不使用一次性牌" : card.note}><strong>{card.name}</strong><span>Lv {card.level}</span></button>; })}</div></div>;
+function DeckToggles({ title, side, cards, onCount }) {
+  const counts = cards.reduce((map, card) => map.set(card.id, (map.get(card.id) ?? 0) + 1), new Map());
+  return (
+    <div>
+      <h3>{title}（{cards.length}/10）</h3>
+      <div className="libraryGrid">
+        {cardLibrary.map((card) => {
+          const count = counts.get(card.id) ?? 0;
+          const disabled = side === "boss" && card.type === "一次性卡牌";
+          const locked = card.id === "king" || card.id === "commoner";
+          return (
+            <div key={card.id} className={`deckCardControl ${count > 0 ? "active" : ""} ${disabled ? "disabled" : ""}`} title={disabled ? "Boss 不使用一次性牌" : card.note}>
+              <strong>{card.name}</strong>
+              <span>Lv {card.level}</span>
+              <div className="countControls">
+                <button disabled={disabled || locked || count <= 0} onClick={() => onCount(card.id, count - 1)}>-</button>
+                <em>{count}</em>
+                <button disabled={disabled || locked || cards.length >= 10} onClick={() => onCount(card.id, count + 1)}>+</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 function statusText(status) { if (status === "hand") return "还在手牌"; if (status === "discard") return "已进弃牌"; return "未知状态"; }
 

@@ -949,7 +949,8 @@ h3 {
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
 }
 
-.libraryGrid button {
+.libraryGrid button,
+.deckCardControl {
   background: #f8fafc;
   border: 1px solid #dfe6ee;
   border-radius: 8px;
@@ -959,12 +960,20 @@ h3 {
   text-align: left;
 }
 
-.libraryGrid button:disabled {
+.deckCardControl {
+  cursor: default;
+  display: grid;
+  gap: 6px;
+}
+
+.libraryGrid button:disabled,
+.deckCardControl.disabled {
   cursor: not-allowed;
   opacity: 0.38;
 }
 
-.libraryGrid button.active {
+.libraryGrid button.active,
+.deckCardControl.active {
   background: #eef7ff;
   border-color: #85b9df;
 }
@@ -973,6 +982,38 @@ h3 {
   color: #667587;
   display: block;
   font-size: 12px;
+}
+
+.countControls {
+  align-items: center;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: 28px 1fr 28px;
+}
+
+.countControls button {
+  align-items: center;
+  border: 1px solid #cbd5df;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0;
+  text-align: center;
+}
+
+.countControls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.countControls em {
+  color: #1d4f73;
+  font-style: normal;
+  font-weight: 700;
+  text-align: center;
 }
 
 

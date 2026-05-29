@@ -203,7 +203,14 @@ h3 {
   padding: 0;
   max-width: none;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.configHint {
+  color: #667587;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 10px 0 0;
 }
 
 .configBand label {
@@ -663,7 +670,7 @@ h3 {
 .battleInfo {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-top: 14px;
 }
 

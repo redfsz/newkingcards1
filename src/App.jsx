@@ -21,6 +21,7 @@ import {
   initialBuffLibrary,
   itemLibrary,
   levelPresets,
+  playerUltimateLibrary,
   resultLabels,
   sequenceDamageByLength,
   weatherLibrary
@@ -38,6 +39,7 @@ import {
   setCustomMoveLength,
   setCustomMoveStep,
   setMaxHp,
+  setPlayerUltimateLevel,
   setRevealCount,
   setWeather,
   stateToLevelConfig,
@@ -61,6 +63,7 @@ export function App() {
   const playerPatternText = game.playerPattern.map((entry) => resultLabels[entry]).join(" ");
   const bossPatternText = game.bossPattern.map((entry) => resultLabels[entry]).join(" ");
   const bossPressure = game.bossPressure ?? 0;
+  const ultimateInfo = playerUltimateLibrary.find((entry) => entry.level === game.playerUltimateLevel) ?? playerUltimateLibrary[0];
   const bossTendencyText = game.bossPersona?.pressureRules?.[Math.min(3, bossPressure)] ?? "按当前性格选择出牌。";
   const bossPressureTitle = `当前 Boss：${game.bossPersona?.name ?? "Boss"}（${game.bossPersona?.style ?? "默认"}）\n压力 ${bossPressure}/3\n行为倾向：${bossTendencyText}\n满压力：${game.bossPersona?.fullPressure ?? "打出当前最高等级牌，然后压力清零。"}`;
   const battleTypeText = { npc: "NPC 战斗", duel: "主角切磋", boss: "Boss 战" }[game.battleType] ?? "战斗";
@@ -200,6 +203,7 @@ export function App() {
             <InfoPill label="Boss 弃牌" value={game.bossDiscard.length} />
             <InfoPill label="玩家序列" value={playerPatternText || "无"} />
             <InfoPill label="Boss 序列" value={bossPatternText || "无"} />
+            <InfoPill label="终极招式" value={`${ultimateInfo.name}`} />
           </div>
           <div className="pileBoard">
             <Pile title="我的手牌" cards={game.playerHand} visible />
@@ -214,7 +218,9 @@ export function App() {
             <label><span>玩家最大生命</span><input type="number" min="1" max="99" value={game.basePlayerMaxHp ?? game.playerMaxHp} onChange={(event) => setGame((state) => setMaxHp(state, "player", event.target.value))} /></label>
             <label><span>对手最大生命</span><input type="number" min="1" max="99" value={game.baseBossMaxHp ?? game.bossMaxHp} onChange={(event) => setGame((state) => setMaxHp(state, "boss", event.target.value))} /></label>
             <label><span>基础透视</span><input type="number" min="0" max="5" value={game.baseRevealCount ?? game.revealCount} onChange={(event) => setGame((state) => setRevealCount(state, event.target.value))} /></label>
+            <label><span>终极招式等级</span><input type="number" min="1" max="4" value={game.playerUltimateLevel ?? 1} onChange={(event) => setGame((state) => setPlayerUltimateLevel(state, event.target.value))} /></label>
           </div>
+          <p className="configHint">{ultimateInfo.text}</p>
         </section>
 
         <section className="panel">
@@ -242,7 +248,7 @@ export function App() {
               />
             ))}
           </div>
-          <h3>Boss 携带</h3><div className="moveList">{bossMoveLibrary.map((move) => <ToggleRow key={move.id} active={game.selectedBossMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "boss"))} />)}</div>
+          <h3>Boss 携带（{game.selectedBossMoves.length}/10）</h3><div className="moveList">{bossMoveLibrary.map((move) => <ToggleRow key={move.id} active={game.selectedBossMoves.includes(move.id)} title={move.name} meta={`${move.pattern.map((p) => resultLabels[p]).join(" ")} / ${move.damage} 伤害`} note={move.note} onClick={() => setGame((state) => toggleMove(state, move.id, "boss"))} />)}</div>
         </section>
 
         <section className="panel">
@@ -303,21 +309,27 @@ function RulesModal({ onClose }) {
         </div>
         <div className="rulesContent">
           <h3>目标</h3>
-          <p>选择手牌与对手对弈，通过胜负序列触发招式，把对手生命打到 0。</p>
+          <p>选择手牌与对手对弈，通过胜负序列触发招式，把对手生命打到 0。每层有 NPC 战、主角切磋和 Boss 战，Boss 战会有专属规则与技能。</p>
           <h3>比牌</h3>
-          <p>通常等级高的牌获胜。国王 3，大臣 2，平民 1，但平民克制国王。同等级双方失败。</p>
+          <p>通常等级高的牌获胜。国王 3，大臣 2，平民 1，但平民克制国王。同等级双方失败。弑君者、乱党、乞丐会在缺少对应核心牌时临时视为国王、大臣、平民。</p>
           <h3>出牌限制</h3>
           <p>不能连续两次打出同一张牌，除非你当前可出牌只剩一张。</p>
           <h3>透视</h3>
-          <p>透视能看到一部分对手手牌。如果对手本回合要出的牌在透视范围内，会显示“本回合已知”。</p>
+          <p>透视能看到一部分对手手牌。如果对手本回合要出的牌在透视范围内，会显示“本回合已知”。透视牌会显示还在手牌或已进弃牌。后期 Boss 可能隐藏透视牌或减少透视数量。</p>
           <h3>招式</h3>
-          <p>你可以配置 6 个胜负序列。最近结果符合序列时触发伤害。同回合可触发多个招式，同一招式每回合最多触发一次。</p>
+          <p>你可以配置 6 个玩家招式，每个招式是一串“胜/负”。最近结果符合序列时触发伤害。同回合可触发多个招式，同一招式每回合最多触发一次。Boss 也有自己的招式，前期较少，后期 Boss 会携带更多更长的招式。</p>
           <h3>伤害</h3>
           <p>1 位 1 点，2 位 3 点，3 位 5 点，4 位 7 点，5 位 15 点，6 位 30 点。</p>
           <h3>崩溃</h3>
-          <p>一方手牌被打空会进入崩溃，受到终极招式伤害；如果没死，会重洗弃牌继续战斗并获得负面状态。</p>
+          <p>一方手牌被打空会进入崩溃，受到终极招式伤害；如果没死，会重洗弃牌继续战斗并获得 1 层崩溃负面状态。崩溃负面状态会让之后受到的招式伤害增加。</p>
+          <h3>玩家终极招式</h3>
+          <p>当你把对手打到崩溃时，会触发玩家终极招式。等级 1 造成对手最大生命 50% 伤害；等级 2 为 50% + 3；等级 3 为 75%；等级 4 为 100%。暖风天气下，崩溃伤害会直接按最大生命结算。</p>
           <h3>Boss</h3>
-          <p>Boss 有压力、性格倾向、技能和专属地形。技能会在指定回合自动发动，通常对 Boss 有利。</p>
+          <p>Boss 有压力、性格倾向、招式、技能和专属地形。Boss 输牌通常会增加压力，压力高时会更激进。Boss 技能会在指定回合自动发动，通常对 Boss 有利，例如减伤、清空玩家序列、隐藏透视牌、提高压力或增加伤害。</p>
+          <h3>Boss 地形</h3>
+          <p>只有 Boss 战有地形规则。比如巡逻队长第一次崩溃免伤、雪花谋士隐藏透视、四象门主积累仪式、伪神赌徒让双方失败也增加压力、暖风裁决者提高玩家崩溃伤害、王座之影削弱重复同长度招式。</p>
+          <h3>道具和天气</h3>
+          <p>道具牌是给玩家用的一次性工具，比如预见牌、加等级、减 Boss 等级、续命牌。Boss 默认不携带一次性牌。天气会影响部分牌或崩溃效果，例如烈日/冰雹改变 .5 等级牌，暖风强化崩溃伤害。</p>
           <h3>上手建议</h3>
           <p>先从第一层 NPC 战开始。不要急着改配置，先理解国王、大臣、平民，再尝试“胜”“胜胜”“负胜”等短招式。</p>
         </div>

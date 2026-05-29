@@ -6,6 +6,7 @@
   initialBuffLibrary,
   itemLibrary,
   levelPresets,
+  playerUltimateLibrary,
   requiredDeckCards,
   sequenceDamageByLength
 } from "./gameData.js";
@@ -49,6 +50,7 @@ export function createStateFromConfig(config) {
     basePlayerMaxHp: normalized.playerMaxHp,
     baseBossMaxHp: normalized.bossMaxHp,
     baseRevealCount: normalized.revealCount,
+    playerUltimateLevel: normalized.playerUltimateLevel,
     playerHp: effective.playerMaxHp,
     playerMaxHp: effective.playerMaxHp,
     bossHp: effective.bossMaxHp,
@@ -87,6 +89,7 @@ export function stateToLevelConfig(state) {
     floor: state.floor ?? 1,
     battleType: state.battleType ?? "boss",
     playerMaxHp: state.basePlayerMaxHp ?? state.playerMaxHp,
+    playerUltimateLevel: state.playerUltimateLevel ?? 1,
     bossMaxHp: state.baseBossMaxHp ?? state.bossMaxHp,
     weather: state.weather,
     bossPersona: state.bossPersona?.id ?? state.bossPersona ?? "gatekeeper",
@@ -111,6 +114,7 @@ export function normalizeLevelConfig(config) {
     floor: clampNumber(source.floor, 1, 7, fallback.floor ?? 1),
     battleType: ["npc", "duel", "boss"].includes(source.battleType) ? source.battleType : "boss",
     playerMaxHp: clampNumber(source.playerMaxHp, 1, 99, fallback.playerMaxHp),
+    playerUltimateLevel: clampNumber(source.playerUltimateLevel, 1, 4, defaultUltimateLevel(source.floor ?? fallback.floor ?? 1)),
     bossMaxHp: clampNumber(source.bossMaxHp, 1, 99, fallback.bossMaxHp),
     weather: source.weather || "clear",
     bossPersona: personaById.has(source.bossPersona) ? source.bossPersona : fallback.bossPersona ?? "gatekeeper",
@@ -119,7 +123,7 @@ export function normalizeLevelConfig(config) {
     playerDeck: sanitizeDeck(source.playerDeck, "player"),
     bossDeck: sanitizeDeck(source.bossDeck, "boss"),
     customMoves: sanitizeCustomMoves(source.customMoves, source.selectedMoves),
-    selectedBossMoves: sanitizeIds(source.selectedBossMoves, bossMoveLibrary, fallback.selectedBossMoves, 6),
+    selectedBossMoves: sanitizeIds(source.selectedBossMoves, bossMoveLibrary, fallback.selectedBossMoves, 10),
     battleRule: sanitizeBattleRule(source.battleRule),
     bossSkills: sanitizeBossSkills(source.bossSkills),
     ownedItems: sanitizeIds(source.ownedItems, itemLibrary, fallback.ownedItems, itemLibrary.length)
@@ -171,7 +175,7 @@ export function toggleMove(state, moveId, side = "player") {
   const key = side === "player" ? "selectedMoves" : "selectedBossMoves";
   const selected = state[key];
   if (selected.includes(moveId)) return { ...state, [key]: selected.filter((id) => id !== moveId) };
-  if (selected.length >= 6) return addLog(state, "warn", "最多携带 6 个招式。");
+  if (selected.length >= 10) return addLog(state, "warn", "Boss 最多携带 10 个招式。");
   return { ...state, [key]: [...selected, moveId] };
 }
 
@@ -287,6 +291,9 @@ export function setMaxHp(state, side, value) {
   const delta = nextMax - state.bossMaxHp;
   return { ...state, baseBossMaxHp: nextMax, bossMaxHp: nextMax, bossHp: Math.max(1, Math.min(nextMax, state.bossHp + delta)) };
 }
+export function setPlayerUltimateLevel(state, value) {
+  return { ...state, playerUltimateLevel: clampNumber(value, 1, 4, state.playerUltimateLevel ?? 1) };
+}
 export function resetBattle(state) { return createStateFromConfig(stateToLevelConfig(state)); }
 export function getLegalPlayerCards(state) { return state.playerHand.length <= 1 ? state.playerHand : state.playerHand.filter((card) => card.key !== state.playerLastCardKey); }
 export function getVisibleBossCards(state) {
@@ -342,6 +349,8 @@ function sanitizeBossSkills(skills) {
     text: String(skill.text || "")
   }));
 }
+function defaultUltimateLevel(floor) { return Math.max(1, Math.min(4, Math.ceil(Number(floor || 1) / 2))); }
+function playerUltimateInfo(level) { return playerUltimateLibrary.find((entry) => entry.level === level) ?? playerUltimateLibrary[0]; }
 function sanitizeCustomMoves(moves, legacySelectedMoves = null, fallbackMoves = null) {
   const legacyMap = {
     single_win: ["win"],
@@ -513,7 +522,7 @@ function handleCollapse(state, side, logs) {
   const isPlayer = side === "player";
   const targetName = isPlayer ? "玩家" : "Boss";
   const maxHp = isPlayer ? state.playerMaxHp : state.bossMaxHp;
-  let damage = state.weather === "warm" ? maxHp : Math.ceil(maxHp / 2);
+  let damage = isPlayer ? collapseDamage(maxHp, 1, state.weather) : collapseDamage(maxHp, state.playerUltimateLevel ?? 1, state.weather);
   if (isPlayer && state.battleRule?.id === "execution_player_collapse_plus") damage += 3;
   if (isPlayer && hasBuff(state, "collapse_guard")) damage = Math.max(1, damage - 3);
   let next = { ...state };
@@ -531,12 +540,19 @@ function handleCollapse(state, side, logs) {
       return next;
     }
     next.bossHp = Math.max(0, next.bossHp - damage);
-    logs.push(`${targetName}牌组被打空，进入崩溃状态，受到终极招式 ${damage} 点伤害。`);
+    logs.push(`${targetName}牌组被打空，进入崩溃状态，受到玩家${playerUltimateInfo(state.playerUltimateLevel ?? 1).name} ${damage} 点伤害。`);
     if (next.bossHp <= 0) { next.winner = "player"; logs.push("Boss 在崩溃伤害中倒下，玩家获胜。"); return next; }
     next.bossCollapseStacks += 1; next.bossHand = shuffleLike([...next.bossDiscard]); next.bossDiscard = []; next.bossLastCardKey = null; next = syncRevealedBossCards(next);
     logs.push("Boss 未被击败，重洗弃牌继续战斗，并获得 1 层崩溃负面状态。");
   }
   return next;
+}
+function collapseDamage(maxHp, ultimateLevel, weather) {
+  if (weather === "warm") return maxHp;
+  if (ultimateLevel >= 4) return maxHp;
+  if (ultimateLevel >= 3) return Math.ceil(maxHp * 0.75);
+  if (ultimateLevel >= 2) return Math.ceil(maxHp / 2) + 3;
+  return Math.ceil(maxHp / 2);
 }
 function applyRoundStartEffects(state) {
   const logs = [];

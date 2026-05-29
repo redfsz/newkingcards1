@@ -688,6 +688,42 @@ h3 {
   margin-bottom: 4px;
 }
 
+.abilityBoard {
+  background: #f8fafc;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+  padding: 10px;
+}
+
+.abilityColumn h3 {
+  margin: 0 0 8px;
+}
+
+.abilityTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.abilityTag,
+.emptyAbility {
+  background: #fff;
+  border: 1px solid #d8e2ec;
+  border-radius: 8px;
+  color: #314154;
+  font-size: 12px;
+  line-height: 1.25;
+  padding: 6px 8px;
+}
+
+.emptyAbility {
+  color: #8a97a8;
+}
+
 .moveList,
 .itemList {
   display: grid;

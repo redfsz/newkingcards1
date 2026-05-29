@@ -64,9 +64,9 @@ export function App() {
   const bossPatternText = game.bossPattern.map((entry) => resultLabels[entry]).join(" ");
   const bossPressure = game.bossPressure ?? 0;
   const ultimateInfo = playerUltimateLibrary.find((entry) => entry.level === game.playerUltimateLevel) ?? playerUltimateLibrary[0];
-  const bossTendencyText = game.bossPersona?.pressureRules?.[Math.min(3, bossPressure)] ?? "按当前性格选择出牌。";
-  const bossPressureTitle = `当前 Boss：${game.bossPersona?.name ?? "Boss"}（${game.bossPersona?.style ?? "默认"}）\n压力 ${bossPressure}/3\n行为倾向：${bossTendencyText}\n满压力：${game.bossPersona?.fullPressure ?? "打出当前最高等级牌，然后压力清零。"}`;
+  const bossPressureTitle = `当前 Boss：${game.bossPersona?.name ?? "Boss"}（${game.bossPersona?.style ?? "默认"}）\n压力 ${bossPressure}/3\n压力越高，Boss 越容易进入激进状态。`;
   const battleTypeText = { npc: "NPC 战斗", duel: "主角切磋", boss: "Boss 战" }[game.battleType] ?? "战斗";
+  const activeAbilities = getActiveAbilities(game);
 
   function applyLevel(levelId) {
     const level = levelPresets.find((entry) => entry.id === levelId);
@@ -150,9 +150,8 @@ export function App() {
               {[0, 1, 2].map((dot) => <i key={dot} className={dot < bossPressure ? "active" : ""} />)}
             </div>
           </div>
-          <p className="decisionText"><strong>当前倾向：</strong>{bossTendencyText}</p>
-          <p className="decisionText muted"><strong>满压力倾向：</strong>{game.bossPersona?.fullPressure}</p>
-          <p className="decisionText hint">这里显示的是性格倾向，不代表 Boss 本回合一定出哪张牌。</p>
+          <p className="decisionText"><strong>性格：</strong>{game.bossPersona?.style}</p>
+          <p className="decisionText hint">压力越高，Boss 越危险，但界面不会透露 Boss 的具体出牌决策。</p>
           {game.battleRule && (
             <div className="ruleBox">
               <strong>{game.battleRule.name}</strong>
@@ -204,6 +203,10 @@ export function App() {
             <InfoPill label="玩家序列" value={playerPatternText || "无"} />
             <InfoPill label="Boss 序列" value={bossPatternText || "无"} />
             <InfoPill label="终极招式" value={`${ultimateInfo.name}`} />
+          </div>
+          <div className="abilityBoard">
+            <AbilityColumn title="玩家已生效能力" abilities={activeAbilities.player} />
+            <AbilityColumn title="Boss 已生效能力" abilities={activeAbilities.boss} />
           </div>
           <div className="pileBoard">
             <Pile title="我的手牌" cards={game.playerHand} visible />
@@ -339,6 +342,51 @@ function RulesModal({ onClose }) {
 }
 function StatCard({ icon, label, value, danger = false, highlight = false, title = "" }) { return <div className={`statCard ${danger ? "danger" : ""} ${highlight ? "highlight" : ""}`} title={title}>{icon}<span>{label}</span><strong>{value}</strong></div>; }
 function InfoPill({ label, value }) { return <div className="infoPill"><span>{label}</span><strong>{value}</strong></div>; }
+function AbilityColumn({ title, abilities }) {
+  return (
+    <div className="abilityColumn">
+      <h3>{title}</h3>
+      <div className="abilityTags">
+        {abilities.length === 0 && <span className="emptyAbility">无</span>}
+        {abilities.map((ability) => <span key={ability} className="abilityTag">{ability}</span>)}
+      </div>
+    </div>
+  );
+}
+function getActiveAbilities(game) {
+  const player = [];
+  const boss = [];
+  if (game.levelOrderReversed) { player.push("天作之合：低等级获胜"); boss.push("天作之合：低等级获胜"); }
+  if (game.playerCivilized) player.push("文明：己方牌视为国王");
+  if (game.bossCivilized) boss.push("文明：己方牌视为国王");
+  if (game.playerWarmDay) player.push("暖日：己方 .5 牌 +0.25");
+  if (game.bossWarmDay) boss.push("暖日：己方 .5 牌 +0.25");
+  if (game.playerSnowflake) boss.push("雪花：己方 .5 牌 -0.25");
+  if (game.bossSnowflake) player.push("雪花：己方 .5 牌 -0.25");
+  if (game.playerEvenForm) player.push("偶数形态：偶数回合 +1");
+  if (game.bossEvenForm) boss.push("偶数形态：偶数回合 +1");
+  if (game.playerOddForm) player.push("奇数形态：奇数回合 +1");
+  if (game.bossOddForm) boss.push("奇数形态：奇数回合 +1");
+  if (game.playerExponentialForm) player.push("指数形态：等级平方，额外弃牌");
+  if (game.bossExponentialForm) boss.push("指数形态：等级平方，额外弃牌");
+  if (game.playerDaydream) player.push("白日梦：每回合替换手牌");
+  if (game.bossDaydream) boss.push("白日梦：每回合替换手牌");
+  if (game.playerForcedLoss) player.push("伪神反噬：本回合必败");
+  if (game.bossForcedLoss) boss.push("伪神反噬：本回合必败");
+  if (game.playerForcedWin) player.push("占卜预言：本回合必胜");
+  if (game.bossForcedWin) boss.push("占卜预言：本回合必胜");
+  if ((game.playerCollapseStacks ?? 0) > 0) player.push(`崩溃负面：${game.playerCollapseStacks} 层`);
+  if ((game.bossCollapseStacks ?? 0) > 0) boss.push(`崩溃负面：${game.bossCollapseStacks} 层`);
+  if ((game.bossDamageReduction ?? 0) > 0) boss.push(`本回合减伤：-${game.bossDamageReduction}`);
+  if ((game.bossWinBonus ?? 0) > 0) boss.push(`胜利追加伤害：+${game.bossWinBonus}`);
+  if ((game.bossMoveDamageBonus ?? 0) > 0) boss.push(`下次招式伤害：+${game.bossMoveDamageBonus}`);
+  if ((game.fourSymbolBonus ?? 0) > 0) boss.push(`下一张四象等级：+${game.fourSymbolBonus}`);
+  if ((game.fourSymbolRitual ?? 0) > 0) boss.push(`四象仪式：${game.fourSymbolRitual}/4`);
+  if ((game.playerFourWins ?? []).length > 0) player.push(`四象获胜：${game.playerFourWins.length}/4`);
+  if ((game.bossFourWins ?? []).length > 0) boss.push(`四象获胜：${game.bossFourWins.length}/4`);
+  if (game.ignoreNextBossLossSequence) boss.push("伪神降桌：下一次失败不送玩家序列");
+  return { player, boss };
+}
 function ToggleRow({ active, title, meta, note, onClick }) { return <button className={`toggleRow ${active ? "active" : ""}`} onClick={onClick} title={note}><span><strong>{title}</strong><small>{note}</small></span><em>{meta}</em></button>; }
 function CustomMoveEditor({ move, damage, onStep, onLength }) {
   return (

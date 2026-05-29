@@ -475,7 +475,7 @@ function sanitizeCustomMoves(moves, legacySelectedMoves = null, fallbackMoves = 
     const fallback = defaultCustomMoves[index];
     const move = source[index] ?? fallback;
     const pattern = Array.isArray(move.pattern)
-      ? move.pattern.filter((entry) => entry === "win" || entry === "loss" || entry === "draw").slice(0, 6)
+      ? move.pattern.filter((entry) => entry === "win" || entry === "loss").slice(0, 6)
       : fallback.pattern;
     return {
       id: fallback.id,
@@ -883,8 +883,6 @@ function applyBossSkill(state, skill, logs) {
   let next = { ...state };
   logs.push(`Boss 技能【${skill.name}】发动：${skill.text}`);
   if (skill.effect === "pressureDown") next.bossPressure = Math.max(0, (next.bossPressure ?? 0) - skill.value);
-  else if (skill.effect === "pressureUp") next.bossPressure = Math.min(3, (next.bossPressure ?? 0) + skill.value);
-  else if (skill.effect === "pressureSet") next.bossPressure = clampNumber(skill.value, 0, 3, 3);
   else if (skill.effect === "bossDamageReduction") next.bossDamageReduction = skill.value;
   else if (skill.effect === "bossWinBonus") next.bossWinBonus = (next.bossWinBonus ?? 0) + skill.value;
   else if (skill.effect === "bossMoveDamageBonus") next.bossMoveDamageBonus = (next.bossMoveDamageBonus ?? 0) + skill.value;
@@ -896,7 +894,7 @@ function applyBossSkill(state, skill, logs) {
   else if (skill.effect === "removePlayerDiscard") next = removePlayerDiscard(next);
   else if (skill.effect === "reduceReveal") next = syncRevealedBossCards({ ...next, revealCount: Math.max(0, next.revealCount - skill.value), baseRevealCount: Math.max(0, (next.baseRevealCount ?? next.revealCount) - skill.value) });
   else if (skill.effect === "clearBothPatterns") next = { ...next, playerPattern: [], bossPattern: [] };
-  else if (skill.effect === "finalCoronation") next = { ...next, bossPressure: 3, bossMoveDamageBonus: (next.bossMoveDamageBonus ?? 0) + skill.value };
+  else if (skill.effect === "finalCoronation") next = { ...next, playerPattern: [], bossPattern: [], bossMoveDamageBonus: (next.bossMoveDamageBonus ?? 0) + skill.value };
   return next;
 }
 function applyRuleAfterResult(state, result, bossCard, logs) {

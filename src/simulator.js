@@ -178,7 +178,7 @@ export function toggleCardInDeck(state, side, cardId) {
 export function setCardCountInDeck(state, side, cardId, count) {
   const card = byId.get(cardId);
   if (!card) return state;
-  if (side === "boss" && isOneTimeCard(card)) return addLog(state, "warn", "Boss 不能携带一次性牌。一次性牌是给玩家使用的道具。");
+  if (isOneTimeCard(card)) return addLog(state, "warn", "一次性牌属于道具牌，请在道具栏配置数量，不进入战斗卡组。");
   const nextCount = requiredDeckCards.includes(cardId) ? 1 : clampNumber(count, 0, 9, 0);
 
   const handKey = side === "player" ? "playerHand" : "bossHand";
@@ -221,11 +221,15 @@ export function setCustomMoveLength(state, moveId, length) {
 }
 
 export function toggleItem(state, itemId) {
-  const owned = state.ownedItems;
-  if (owned.includes(itemId)) {
-    return { ...state, ownedItems: owned.filter((id) => id !== itemId), activeItemId: state.activeItemId === itemId ? "" : state.activeItemId };
-  }
-  return { ...state, ownedItems: [...owned, itemId] };
+  return setItemCount(state, itemId, countItems(state.ownedItems, itemId) > 0 ? 0 : 1);
+}
+
+export function setItemCount(state, itemId, count) {
+  if (!itemById.has(itemId)) return state;
+  const nextCount = clampNumber(count, 0, 9, 0);
+  const others = (state.ownedItems ?? []).filter((id) => id !== itemId);
+  const ownedItems = [...others, ...Array.from({ length: nextCount }, () => itemId)];
+  return { ...state, ownedItems, activeItemId: nextCount === 0 && state.activeItemId === itemId ? "" : state.activeItemId };
 }
 
 export function chooseItem(state, itemId) {
@@ -252,7 +256,7 @@ export function playRound(state, playerCardKey) {
     ? { ...rawBossCard, id: "disabled_card", name: `${rawBossCard.name}(失效)`, level: 0, levelOverride: 0, type: rawBossCard.type }
     : resolvePlayedCard(rawBossCard, "boss", prepared);
 
-  let next = { ...prepared, playerHand: prepared.playerHand.filter((card) => card.key !== rawPlayerCard.key), bossHand: prepared.bossHand.filter((card) => card.key !== rawBossCard.key), activeItemId: "" };
+  let next = { ...prepared, playerHand: prepared.playerHand.filter((card) => card.key !== rawPlayerCard.key), bossHand: prepared.bossHand.filter((card) => card.key !== rawBossCard.key), activeItemId: "", ownedItems: consumeItem(prepared.ownedItems, prepared.activeItemId) };
   const result = compareCards(playerCard, bossCard, prepared.weather, item, {
     playerHandBeforePlay: prepared.playerHand,
     bossHandBeforePlay: prepared.bossHand,
@@ -496,6 +500,18 @@ function sanitizeCustomMoves(moves, legacySelectedMoves = null, fallbackMoves = 
 }
 function collectDeckIds(hand, discard) { return [...hand, ...discard].map((card) => card.id); }
 function countCardsById(cards, cardId) { return cards.filter((card) => card.id === cardId).length; }
+function countItems(items, itemId) { return (items ?? []).filter((id) => id === itemId).length; }
+function consumeItem(items, itemId) {
+  if (!itemId) return items;
+  let consumed = false;
+  return (items ?? []).filter((id) => {
+    if (!consumed && id === itemId) {
+      consumed = true;
+      return false;
+    }
+    return true;
+  });
+}
 function isOneTimeCard(card) { return card.type === "一次性卡牌"; }
 function clampNumber(value, min, max, fallback) { const n = Number(value); if (!Number.isFinite(n)) return fallback; return Math.max(min, Math.min(max, Math.round(n))); }
 function syncRevealedBossCards(state) {

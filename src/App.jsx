@@ -43,9 +43,9 @@ import {
   setRevealCount,
   setWeather,
   setCardCountInDeck,
+  setItemCount,
   stateToLevelConfig,
   toggleInitialBuff,
-  toggleItem,
   toggleMove
 } from "./simulator.js";
 
@@ -260,9 +260,10 @@ export function App() {
           <h3>一次性道具牌</h3>
           <div className="itemList">
             {itemLibrary.map((item) => {
-              const owned = game.ownedItems.includes(item.id);
+              const count = countIds(game.ownedItems, item.id);
+              const owned = count > 0;
               const armed = game.activeItemId === item.id;
-              return <div className={`itemRow ${owned ? "" : "muted"}`} key={item.id}><button className={owned ? "toggle active" : "toggle"} onClick={() => setGame((state) => toggleItem(state, item.id))}>{owned ? "已买" : "未买"}</button><button className={`armButton ${armed ? "armed" : ""}`} disabled={!owned || Boolean(game.winner)} onClick={() => setGame((state) => chooseItem(state, item.id))}>{armed ? "本回合使用" : "准备使用"}</button><div><strong>{item.name}</strong><span>{item.price}$ / {item.note}</span></div></div>;
+              return <div className={`itemRow ${owned ? "" : "muted"}`} key={item.id}><div className="countControls"><button disabled={count <= 0} onClick={() => setGame((state) => setItemCount(state, item.id, count - 1))}>-</button><em>{count}</em><button onClick={() => setGame((state) => setItemCount(state, item.id, count + 1))}>+</button></div><button className={`armButton ${armed ? "armed" : ""}`} disabled={!owned || Boolean(game.winner)} onClick={() => setGame((state) => chooseItem(state, item.id))}>{armed ? "本回合使用" : "准备使用"}</button><div><strong>{item.name}</strong><span>{item.price}$ / {item.note}</span></div></div>;
             })}
           </div>
         </section>
@@ -332,7 +333,7 @@ function RulesModal({ onClose }) {
           <h3>Boss 地形</h3>
           <p>只有 Boss 战有地形规则。比如巡逻队长第一次崩溃免伤、雪花谋士隐藏透视、四象门主积累仪式、伪神赌徒让双方失败也增加压力、暖风裁决者提高玩家崩溃伤害、王座之影削弱重复同长度招式。</p>
           <h3>道具和天气</h3>
-          <p>道具牌是给玩家用的一次性工具，比如预见牌、加等级、减 Boss 等级、续命牌。Boss 默认不携带一次性牌。天气会影响部分牌或崩溃效果，例如烈日/冰雹改变 .5 等级牌，暖风强化崩溃伤害。</p>
+          <p>道具牌是给玩家用的一次性工具，比如预见牌、后悔牌、加等级、减 Boss 等级、续命牌。道具牌在出牌前准备使用，不占用出牌机会，使用后数量 -1，也不会进入手牌或弃牌堆。Boss 不携带道具牌。</p>
           <h3>能力牌</h3>
           <p>能力牌可以多次打出，具体效果按每次打出的规则结算。比如天作之合每打出一次都会切换等级排序：第一次变成低等级获胜，第二次会恢复为高等级获胜。</p>
           <h3>上手建议</h3>
@@ -421,10 +422,10 @@ function DeckToggles({ title, side, cards, onCount }) {
       <div className="libraryGrid">
         {cardLibrary.map((card) => {
           const count = counts.get(card.id) ?? 0;
-          const disabled = side === "boss" && card.type === "一次性卡牌";
+          const disabled = card.type === "一次性卡牌";
           const locked = card.id === "king" || card.id === "commoner";
           return (
-            <div key={card.id} className={`deckCardControl ${count > 0 ? "active" : ""} ${disabled ? "disabled" : ""}`} title={disabled ? "Boss 不使用一次性牌" : card.note}>
+            <div key={card.id} className={`deckCardControl ${count > 0 ? "active" : ""} ${disabled ? "disabled" : ""}`} title={disabled ? "一次性牌请在道具栏配置数量" : card.note}>
               <strong>{card.name}</strong>
               <span>Lv {card.level}</span>
               <div className="countControls">
@@ -440,6 +441,7 @@ function DeckToggles({ title, side, cards, onCount }) {
   );
 }
 function statusText(status) { if (status === "hand") return "还在手牌"; if (status === "discard") return "已进弃牌"; return "未知状态"; }
+function countIds(ids, id) { return (ids ?? []).filter((entry) => entry === id).length; }
 
 
 

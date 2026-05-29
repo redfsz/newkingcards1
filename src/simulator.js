@@ -286,10 +286,20 @@ export function playRound(state, playerCardKey) {
   if (selectedPlayerCardKey !== playerCardKey) logs.push(`混乱战场生效：本回合随机改为打出【${playerCard.name}】。`);
 
   if (result.player === "win") {
-    next.playerHand = [...next.playerHand, rawPlayerCard];
+    if (rawPlayerCard.id === "false_god") {
+      next.playerDiscard = [...next.playerDiscard, rawPlayerCard];
+      logs.push("玩家【伪神】虽然获胜，但仍进入弃牌堆。");
+    } else {
+      next.playerHand = [...next.playerHand, rawPlayerCard];
+    }
     next.bossDiscard = [...next.bossDiscard, rawBossCard];
   } else if (result.player === "loss") {
-    next.bossHand = [...next.bossHand, rawBossCard];
+    if (rawBossCard.id === "false_god" && result.boss === "win") {
+      next.bossDiscard = [...next.bossDiscard, rawBossCard];
+      logs.push("Boss【伪神】虽然获胜，但仍进入弃牌堆。");
+    } else {
+      next.bossHand = [...next.bossHand, rawBossCard];
+    }
     if (item?.id === "save") {
       next.playerHand = [...next.playerHand, rawPlayerCard];
       logs.push("续命牌生效：本回合输掉的牌回到手牌。");

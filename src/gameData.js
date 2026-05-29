@@ -11,7 +11,7 @@
   { id: "rebel", name: "乱党", level: 1, type: "补充基础卡", note: "手牌中没有大臣时，视为大臣" },
   { id: "beggar", name: "乞丐", level: 1, type: "补充基础卡", note: "手牌中没有平民时，视为平民" },
   { id: "assassin", name: "刺客", level: 0, type: "额外功能卡", note: "强制双方失败" },
-  { id: "false_god", name: "伪神", level: 0, type: "额外功能卡", note: "本次必胜，下回合自动失败" },
+  { id: "false_god", name: "伪神", level: 0, type: "额外功能卡", note: "本次必胜，赢了也进弃牌堆，下回合自动失败" },
   { id: "fortune_teller", name: "占卜师", level: 0, type: "额外功能卡", note: "本次必败，下次必胜" },
   { id: "shadow", name: "影子", level: 0, type: "额外功能卡", note: "复制对手上一张打出的牌" },
   { id: "fate", name: "命运", level: 0, type: "额外功能卡", note: "出牌时等级随机变为 1-3 的整数" },

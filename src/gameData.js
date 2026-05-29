@@ -80,7 +80,7 @@ export const bossMoveLibrary = [
   { id: "boss_triple", name: "三连压制", pattern: ["win", "win", "win"], damage: 5, note: "连续三次胜利后的高压招式" },
   { id: "boss_counter_chain", name: "诱敌连击", pattern: ["loss", "win", "win"], damage: 4, note: "先输后连续反打" },
   { id: "boss_comeback", name: "逆势处刑", pattern: ["loss", "loss", "win"], damage: 4, note: "连续失利后反扑" },
-  { id: "boss_grind", name: "消耗战", pattern: ["win", "loss", "win"], damage: 5, note: "胜负交错时稳定压血" },
+  { id: "boss_grind", name: "消耗战", pattern: ["win", "any", "win"], damage: 5, note: "胜后无论中间结果如何，再胜一次即可压血" },
   { id: "boss_execution", name: "处刑序列", pattern: ["win", "win", "loss", "win"], damage: 7, note: "高阶 Boss 的压迫序列" },
   { id: "boss_ritual", name: "仪式回响", pattern: ["loss", "win", "loss", "win"], damage: 7, note: "组合型 Boss 的节奏招式" },
   { id: "boss_final", name: "终局王令", pattern: ["loss", "win", "win", "win"], damage: 9, note: "最终 Boss 先改写规则，再连续反打" },
@@ -132,7 +132,7 @@ export const weatherLibrary = [
   { id: "warm", name: "暖风", note: "崩溃触发的终极招式直接击败目标" }
 ];
 
-export const resultLabels = { win: "胜", loss: "负", draw: "双输" };
+export const resultLabels = { win: "胜", loss: "负", any: "全", draw: "双输" };
 
 export const bossPersonaLibrary = [
   { id: "gatekeeper", name: "守门人", style: "偷血试探型", pressureRules: ["优先用侍女、盗贼这类低风险牌试探，盗贼赢了会偷 5 血。", "开始用大臣和护卫稳定换牌，继续保留国王和平民。", "如果能赢，会优先打赢并触发短招式；否则保留核心牌拖节奏。", "打出当前最高等级牌，用压力爆发收尾。"], fullPressure: "压力达到 3 时，守门人会放弃试探，直接打最高等级牌。" },

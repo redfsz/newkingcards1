@@ -809,6 +809,12 @@ h3 {
   color: #9d3030;
 }
 
+.sequenceButtons button.any {
+  background: #eef0f6;
+  border-color: #aab5ca;
+  color: #3d4c68;
+}
+
 .toggleRow {
   align-items: center;
   background: #f8fafc;

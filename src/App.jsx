@@ -321,7 +321,7 @@ function RulesModal({ onClose }) {
           <h3>透视</h3>
           <p>透视能看到一部分对手手牌。如果对手本回合要出的牌在透视范围内，会显示“本回合已知”。透视牌会显示还在手牌或已进弃牌。后期 Boss 可能隐藏透视牌或减少透视数量。</p>
           <h3>招式</h3>
-          <p>你可以配置 6 个玩家招式，每个招式是一串“胜/负”。最近结果符合序列时触发伤害。同回合可触发多个招式，同一招式每回合最多触发一次。Boss 也有自己的招式，前期较少，后期 Boss 会携带更多更长的招式。</p>
+          <p>你可以配置 6 个玩家招式，每个招式是一串“胜/负/全”。“全”代表这一位胜负都可以匹配。最近结果符合序列时触发伤害。同回合可触发多个招式，同一招式每回合最多触发一次。Boss 也有自己的招式，前期较少，后期 Boss 会携带更多更长的招式。</p>
           <h3>伤害</h3>
           <p>1 位 1 点，2 位 3 点，3 位 5 点，4 位 7 点，5 位 15 点，6 位 30 点。</p>
           <h3>崩溃</h3>
@@ -405,7 +405,7 @@ function CustomMoveEditor({ move, damage, onStep, onLength }) {
         </label>
         <div className="sequenceButtons">
           {move.pattern.map((entry, index) => (
-            <button key={`${move.id}-${index}`} className={entry === "win" ? "win" : "loss"} onClick={() => onStep(index, entry === "win" ? "loss" : "win")}>
+            <button key={`${move.id}-${index}`} className={entry} onClick={() => onStep(index, nextPatternStep(entry))}>
               {resultLabels[entry]}
             </button>
           ))}
@@ -442,6 +442,7 @@ function DeckToggles({ title, side, cards, onCount }) {
 }
 function statusText(status) { if (status === "hand") return "还在手牌"; if (status === "discard") return "已进弃牌"; return "未知状态"; }
 function countIds(ids, id) { return (ids ?? []).filter((entry) => entry === id).length; }
+function nextPatternStep(entry) { if (entry === "win") return "loss"; if (entry === "loss") return "any"; return "win"; }
 
 
 

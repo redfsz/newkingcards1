@@ -489,7 +489,7 @@ function sanitizeCustomMoves(moves, legacySelectedMoves = null, fallbackMoves = 
     const fallback = defaultCustomMoves[index];
     const move = source[index] ?? fallback;
     const pattern = Array.isArray(move.pattern)
-      ? move.pattern.filter((entry) => entry === "win" || entry === "loss").slice(0, 6)
+      ? move.pattern.filter(isPatternStep).slice(0, 6)
       : fallback.pattern;
     return {
       id: fallback.id,
@@ -1027,7 +1027,8 @@ function deterministicRange(key, min, max) {
   for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
   return min + (hash % (max - min + 1));
 }
-function endsWithPattern(history, pattern) { return history.length >= pattern.length && pattern.every((entry, index) => history[history.length - pattern.length + index] === entry); }
+function isPatternStep(entry) { return entry === "win" || entry === "loss" || entry === "any"; }
+function endsWithPattern(history, pattern) { return history.length >= pattern.length && pattern.every((entry, index) => entry === "any" || history[history.length - pattern.length + index] === entry); }
 function shuffleLike(cards) { return cards.map((card, index) => ({ card, rank: (index * 37 + 11) % 97 })).sort((a, b) => a.rank - b.rank).map((entry) => entry.card); }
 function addLog(state, tone, text) { return addLogs(state, [text], tone); }
 function addLogs(state, entries, tone = "info") { const start = state.logs.length; const logs = entries.map((entry, index) => ({ id: start + index, tone, text: entry })); return { ...state, logs: [...logs, ...state.logs].slice(0, 80) }; }
